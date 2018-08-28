@@ -31,26 +31,27 @@ class(timetk_index)
 # We can now get the original date index using the 
 # tk_tbl() argument timetk_idx = TRUE
 df_tibble <- df_tibble_ts %>%
-  tk_tbl(index_rename = Date, timetk_idx = T)
+  tk_tbl(index_rename = "index", timetk_idx = TRUE)
 
 df_tibble
 
-plot.ts(df_tibble)
+plot.ts(df_tibble_ts)
+plot.ts(df_ts)
 
 # Take a look at data
 max.value <- max(df_tibble$Close)
 min.value <- min(df_tibble$Close)
-start.date <- min(df_tibble$index)
-end.date <- max(df_tibble$index)
+start.date <- min(df_tibble$Date)
+end.date <- max(df_tibble$Date)
 training.region <- round(nrow(df_tibble) * 0.7, 0)
 test.region <- nrow(df_tibble) - training.region
-training.stop.date <- as.Date(max(df_tibble$index)) %m-% days(
+training.stop.date <- as.Date(max(df_tibble$Date)) %m-% days(
   as.numeric(test.region))
 
 df_tibble %>%
   ggplot(
     aes(
-      x = index
+      x = Date
       , y = Close
     )
   ) +

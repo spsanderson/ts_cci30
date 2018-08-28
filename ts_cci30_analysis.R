@@ -48,6 +48,8 @@ df_tibble_ts_sig %>%
                 ylim = c(min.value, max.value)) + 
   theme_tq()
 
+hist(df_tibble_ts_sig$Close)
+
 # Take a look at data
 max.value <- max(df_tibble_ts$Close)
 min.value <- min(df_tibble_ts$Close)

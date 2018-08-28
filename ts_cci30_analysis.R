@@ -81,10 +81,37 @@ df_tibble %>%
     , color = palette_light()[[1]]
   ) +
   labs(
-    title = "Discharges: Monthly Scale"
-    , subtitle = "Source: DSS"
-    , caption = "Based on discharges from 2010-01-01 through 2018-07-31"
-    , y = "Count"
+    title = "Closing Price of CCI30: Daily Scale"
+    , subtitle = "Source: www.cci30.com"
+    , y = "Closing Price"
     , x = ""
   ) +
   theme_tq()
+
+# Split data ####
+train <- df_tibble %>%
+  filter(index <= training.stop.date)
+train
+
+test <- df_tibble %>%
+  filter(index > training.stop.date)
+test
+
+# Add time series signature to training set
+train_augmented <- train %>%
+  tk_augment_timeseries_signature()
+train_augmented
+
+# make linear models
+fit_lm_a <- lm(Open ~ 
+  index
+  + year
+  + half
+  + quarter
+  + month
+  + qday
+  + yday
+  + mweek
+  , data = train_augmented, na.action = na.exclude)
+summary(fit_lm_a)
+plot(fit_lm_a)

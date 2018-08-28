@@ -28,27 +28,37 @@ timetk_index <- tk_index(df_ts, timetk_idx = TRUE)
 head(timetk_index)
 class(timetk_index)
 
-# We can now get the original date index using the 
-# tk_tbl() argument timetk_idx = TRUE
-df_tibble <- df_tibble_ts %>%
-  tk_tbl(index_rename = "index", timetk_idx = TRUE)
+df_tibble_ts
 
-df_tibble
+idx_date <- tk_index(df_tibble_ts)
+str(idx_date)
+tk_get_timeseries_signature(idx_date)
+df_tibble_ts_sig <- tk_augment_timeseries_signature(df_tibble_ts)
+df_tibble_ts_sig
 
-plot.ts(df_tibble_ts)
-plot.ts(df_ts)
+plot.ts(df_tibble_ts_sig[, c("Open","High","Low","Close")])
+
+df_tibble_ts_sig %>%
+  ggplot(aes(x = Date, y = Close)) +
+  geom_candlestick(aes(open = Open, high = High, low = Low, close = Close)) +
+  labs(title = "CCI30 Candlestick Chart",
+       subtitle = "Zoomed in using coord_x_date",
+       y = "Closing Price", x = "") +
+  coord_x_date(xlim = c("2017-01-01", "2018-08-26"),
+                ylim = c(min.value, max.value)) + 
+  theme_tq()
 
 # Take a look at data
-max.value <- max(df_tibble$Close)
-min.value <- min(df_tibble$Close)
-start.date <- min(df_tibble$Date)
-end.date <- max(df_tibble$Date)
-training.region <- round(nrow(df_tibble) * 0.7, 0)
-test.region <- nrow(df_tibble) - training.region
-training.stop.date <- as.Date(max(df_tibble$Date)) %m-% days(
+max.value <- max(df_tibble_ts$Close)
+min.value <- min(df_tibble_ts$Close)
+start.date <- min(df_tibble_ts$Date)
+end.date <- max(df_tibble_ts$Date)
+training.region <- round(nrow(df_tibble_ts) * 0.7, 0)
+test.region <- nrow(df_tibble_ts) - training.region
+training.stop.date <- as.Date(max(df_tibble_ts$Date)) %m-% days(
   as.numeric(test.region))
 
-df_tibble %>%
+df_tibble_ts %>%
   ggplot(
     aes(
       x = Date

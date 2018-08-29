@@ -15,6 +15,10 @@ download.file(url, destfile = destfile)
 df <- read.csv("cci30_OHLCV.csv")
 rm(list = c('url','destfile'))
 
+df.sort.date <- order(df$Date)
+df <- df[df.sort.date, ]
+head(df)
+
 featurePlot(
   x = df[,c("Open","High","Low","Volume")]
   , y = df$Close
@@ -24,11 +28,10 @@ featurePlot(
 
 # Create TS ####
 df$Date <- lubridate::ymd(df$Date)
-df_ts <- msts(df, seasonal.periods=c(7,365.25))
+df_ts <- tk_ts(df, frequency = 365.25)
 head(df_ts)
 str(df_ts)
 plot.ts(df_ts)
-
 
 # Create time aware tibble
 df_tibble_ts <- as_tbl_time(df, index = Date)
@@ -51,6 +54,16 @@ df_ts_sig
 
 plot.ts(df_tibble_ts_sig[, c("Open","High","Low","Close")])
 plot.ts(df_ts_sig[, c("Open","High","Low","Close")])
+
+autoplot(df_ts_sig[,"Close"]) +
+  ggtitle("CCI30 Cryptocurrency Index Closing Price") +
+  xlab("Year") +
+  ylab("Closing Price")
+
+
+m <- ts(df$Close, frequency = 365.25, start(2015, 1))
+components <- decompose(m)
+plot(components)
 
 # Take a look at data
 max.value <- max(df_tibble_ts$Close)

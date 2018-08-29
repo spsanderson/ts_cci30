@@ -5,6 +5,8 @@ library(timetk)
 library(tibbletime)
 library(sweep)
 library(anomalize)
+library(caret)
+library(forecast)
 
 # Daily OHLCV ####
 url <- "https://cci30.com/ajax/getIndexHistory.php"
@@ -13,11 +15,20 @@ download.file(url, destfile = destfile)
 df <- read.csv("cci30_OHLCV.csv")
 rm(list = c('url','destfile'))
 
+featurePlot(
+  x = df[,c("Open","High","Low","Volume")]
+  , y = df$Close
+  #, plot = "pairs"
+  , auto.key = list(columns = 4)
+  )
+
 # Create TS ####
 df$Date <- lubridate::ymd(df$Date)
-df_ts <- tk_ts(df, start = 2015, frequency = 365)
+df_ts <- msts(df, seasonal.periods=c(7,365.25))
 head(df_ts)
 str(df_ts)
+plot.ts(df_ts)
+
 
 # Create time aware tibble
 df_tibble_ts <- as_tbl_time(df, index = Date)
@@ -35,20 +46,11 @@ str(idx_date)
 tk_get_timeseries_signature(idx_date)
 df_tibble_ts_sig <- tk_augment_timeseries_signature(df_tibble_ts)
 df_tibble_ts_sig
+df_ts_sig <- ts(df_tibble_ts_sig)
+df_ts_sig
 
 plot.ts(df_tibble_ts_sig[, c("Open","High","Low","Close")])
-
-df_tibble_ts_sig %>%
-  ggplot(aes(x = Date, y = Close)) +
-  geom_candlestick(aes(open = Open, high = High, low = Low, close = Close)) +
-  labs(title = "CCI30 Candlestick Chart",
-       subtitle = "Zoomed in using coord_x_date",
-       y = "Closing Price", x = "") +
-  coord_x_date(xlim = c("2017-01-01", "2018-08-26"),
-                ylim = c(min.value, max.value)) + 
-  theme_tq()
-
-hist(df_tibble_ts_sig$Close)
+plot.ts(df_ts_sig[, c("Open","High","Low","Close")])
 
 # Take a look at data
 max.value <- max(df_tibble_ts$Close)
@@ -59,6 +61,16 @@ training.region <- round(nrow(df_tibble_ts) * 0.7, 0)
 test.region <- nrow(df_tibble_ts) - training.region
 training.stop.date <- as.Date(max(df_tibble_ts$Date)) %m-% days(
   as.numeric(test.region))
+
+df_tibble_ts_sig %>%
+  ggplot(aes(x = Date, y = Close)) +
+  geom_candlestick(aes(open = Open, high = High, low = Low, close = Close)) +
+  labs(title = "CCI30 Candlestick Chart",
+       subtitle = "Zoomed in using coord_x_date",
+       y = "Closing Price", x = "") +
+  coord_x_date(xlim = c("2017-01-01", "2018-08-26"),
+               ylim = c(min.value, max.value)) + 
+  theme_tq()
 
 df_tibble_ts %>%
   ggplot(

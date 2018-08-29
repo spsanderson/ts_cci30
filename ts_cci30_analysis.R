@@ -65,6 +65,9 @@ m <- ts(df$Close, frequency = 365.25, start(2015, 1))
 components <- decompose(m)
 plot(components)
 
+gglagplot(m)
+ggAcf(m)
+
 # Take a look at data
 max.value <- max(df_tibble_ts$Close)
 min.value <- min(df_tibble_ts$Close)

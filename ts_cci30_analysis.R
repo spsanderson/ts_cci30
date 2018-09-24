@@ -7,6 +7,7 @@ library(sweep)
 library(anomalize)
 library(caret)
 library(forecast)
+library(funModeling)
 
 # Daily OHLCV ####
 url <- "https://cci30.com/ajax/getIndexHistory.php"
@@ -15,19 +16,42 @@ download.file(url, destfile = destfile)
 df <- read.csv("cci30_OHLCV.csv")
 rm(list = c('url','destfile'))
 
-df.sort.date <- order(df$Date)
-df <- df[df.sort.date, ]
-head(df)
+# Format Date ####
+df$Date <- lubridate::mdy(df$Date)
+head(df, 1)
+
+# Coerce df to tibble ####
+df <- as.tibble(df)
 
 featurePlot(
   x = df[,c("Open","High","Low","Volume")]
   , y = df$Close
-  #, plot = "pairs"
+  , plot = "pairs"
   , auto.key = list(columns = 4)
+  , na.action(na.omit)
   )
 
+# Add varaibles ####
+df <- df %>% tq_mutate(
+  select = Close
+  , mutate_fun = dailyReturn
+  )
+head(df, 5)
+
+df <- df %>% tq_mutate(
+  select = Close
+  , mutate_fun = periodReturn
+  , period = "daily"
+  , type = "log"
+)
+head(df, 5)
+
+df <- rename(df, Log.Daily.Return = daily.returns..1)
+head(df, 5)
+
+profiling_num(df$Log.Daily.Return)
+
 # Create TS ####
-df$Date <- lubridate::ymd(df$Date)
 df_ts <- tk_ts(df, frequency = 365.25)
 head(df_ts)
 str(df_ts)
@@ -52,16 +76,16 @@ df_tibble_ts_sig
 df_ts_sig <- ts(df_tibble_ts_sig)
 df_ts_sig
 
-plot.ts(df_tibble_ts_sig[, c("Open","High","Low","Close")])
-plot.ts(df_ts_sig[, c("Open","High","Low","Close")])
+plot.ts(df_tibble_ts_sig[, c("Close","Log.Daily.Return")])
+plot.ts(df_ts_sig[, c("Close","Log.Daily.Return")])
 
-autoplot(df_ts_sig[,"Close"]) +
+autoplot(df_ts_sig[,"Log.Daily.Return"]) +
   ggtitle("CCI30 Cryptocurrency Index Closing Price") +
   xlab("Year") +
-  ylab("Closing Price")
+  ylab("Log of Daily Return")
 
 
-m <- ts(df$Close, frequency = 365.25, start(2015, 1))
+m <- ts(df$Log.Daily.Return, frequency = 365.25, start(2015, 1))
 components <- decompose(m)
 plot(components)
 

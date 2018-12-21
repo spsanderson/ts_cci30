@@ -19,6 +19,7 @@ rm(list = c('url','destfile'))
 # Format Date ####
 df$Date <- lubridate::mdy(df$Date)
 head(df, 1)
+tail(df, 1)
 
 # Coerce df to tibble ####
 df <- as.tibble(df)
@@ -154,22 +155,22 @@ df_tibble_ts %>%
   theme_tq()
 
 # Split data ####
-train <- df_tibble %>%
-  filter(index <= training.stop.date)
-train
+train_data <- df_tibble_ts %>%
+  filter(Date <= training.stop.date)
+train_data
 
-test <- df_tibble %>%
-  filter(index > training.stop.date)
-test
+test_data <- df_tibble_ts %>%
+  filter(Date > training.stop.date)
+test_data
 
 # Add time series signature to training set
-train_augmented <- train %>%
+train_augmented <- train_data %>%
   tk_augment_timeseries_signature()
 train_augmented
 
 # make linear models
 fit_lm_a <- lm(Open ~ 
-  index
+  Date
   + year
   + half
   + quarter

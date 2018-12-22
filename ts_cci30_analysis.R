@@ -52,93 +52,77 @@ head(df, 5)
 
 profiling_num(df$Log.Daily.Return)
 
-# Create TS ####
-df_ts <- tk_ts(df, frequency = 365.25)
-head(df_ts)
-str(df_ts)
-plot.ts(df_ts)
+# Create Time Aware Tibble ####
+df.ts.tbl <- as_tbl_time(df, index = Date)
+head(df.ts.tbl)
+str(df.ts.tbl)
+plot.ts(df.ts.tbl)
 
-# Create time aware tibble
-df_tibble_ts <- as_tbl_time(df, index = Date)
-df_tibble_ts
+# Make ts object from time aware tibble
+df.ts <- tk_ts(
+  df.ts.tbl,
+  start = 2015,
+  frequency = 365
+  )
+class(df.ts)
 
-# Extract original index in the date format using tk_index
-timetk_index <- tk_index(df_ts, timetk_idx = TRUE)
-head(timetk_index)
-class(timetk_index)
+# timetk_index <- tk_index(tk_d, timetk_idx = TRUE)
+# head(timetk_index)
+# class(timetk_index)
+has_timetk_idx(df.ts)
 
-df_tibble_ts
+# Make a monthly log returns of close object
+df.ts.monthly <- df.ts.tbl %>%
+  tq_transmute(
+    select = Close
+    , periodReturn
+    , period = "monthly"
+    , type = "log"
+    , col_rename = "Monthly.Log.Returns"
+    )
+head(df.ts.monthly, 5)
 
-idx_date <- tk_index(df_tibble_ts)
-str(idx_date)
-tk_get_timeseries_signature(idx_date)
-df_tibble_ts_sig <- tk_augment_timeseries_signature(df_tibble_ts)
-df_tibble_ts_sig
-df_ts_sig <- ts(df_tibble_ts_sig)
-df_ts_sig
+# Get some Params ####
+# get max and min discharges
+max.daily.log.return <- max(df.ts.monthly$Monthly.Log.Returns)
+min.daily.log.return <- min(df.ts.monthly$Monthly.Log.Returns)
+start.date <- min(df.ts.monthly$Date)
+end.date   <- max(df.ts.monthly$Date)
 
-plot.ts(df_tibble_ts_sig[, c("Close","Log.Daily.Return")])
-plot.ts(df_ts_sig[, c("Close","Log.Daily.Return")])
+training.region <- round(nrow(df.ts.monthly) * 0.7, 0)
+test.region     <- nrow(df.ts.monthly) - training.region
+training.stop.date <- as.Date(max(df.ts.monthly$Date)) %m-% months(
+  as.numeric(test.region), abbreviate = F)
 
-autoplot(df_ts_sig[,"Log.Daily.Return"]) +
-  ggtitle("CCI30 Cryptocurrency Index Closing Price") +
-  xlab("Year") +
-  ylab("Log of Daily Return")
+plot.ts(df.ts.monthly$Monthly.Log.Returns)
 
-
-m <- ts(df$Log.Daily.Return, frequency = 365.25, start(2015, 1))
-components <- decompose(m)
-plot(components)
-
-gglagplot(m)
-ggAcf(m)
-
-# Take a look at data
-max.value <- max(df_tibble_ts$Close)
-min.value <- min(df_tibble_ts$Close)
-start.date <- min(df_tibble_ts$Date)
-end.date <- max(df_tibble_ts$Date)
-training.region <- round(nrow(df_tibble_ts) * 0.7, 0)
-test.region <- nrow(df_tibble_ts) - training.region
-training.stop.date <- as.Date(max(df_tibble_ts$Date)) %m-% days(
-  as.numeric(test.region))
-
-df_tibble_ts_sig %>%
-  ggplot(aes(x = Date, y = Close)) +
-  geom_candlestick(aes(open = Open, high = High, low = Low, close = Close)) +
-  labs(title = "CCI30 Candlestick Chart",
-       subtitle = "Zoomed in using coord_x_date",
-       y = "Closing Price", x = "") +
-  coord_x_date(xlim = c("2017-01-01", "2018-08-26"),
-               ylim = c(min.value, max.value)) + 
-  theme_tq()
-
-df_tibble_ts %>%
+# Plot intial Data ####
+df.ts.monthly %>%
   ggplot(
     aes(
       x = Date
-      , y = Close
+      , y = Monthly.Log.Returns
     )
   ) +
   geom_rect(
     xmin = as.numeric(ymd(training.stop.date))
     , xmax = as.numeric(ymd(end.date))
-    , ymin = (min.value * 0.9)
-    , ymax = (max.value * 1.1)
+    , ymin = (min.daily.log.return * 1.1)
+    , ymax = (max.daily.log.return * 1.1)
     , fill = palette_light()[[4]]
     , alpha = 0.01
   ) +
   annotate(
     "text"
     , x = ymd("2016-01-01")
-    , y = 5000
+    , y = min.daily.log.return
     , color = palette_light()[[1]]
     , label = "Training Region"
   ) +
   annotate(
     "text"
-    , x = ymd("2018-01-01")
-    , y = 1200
+    , x = ymd("2018-06-01")
+    , y = max.daily.log.return
     , color = palette_light()[[1]]
     , label = "Testing Region"
   ) +
@@ -146,20 +130,39 @@ df_tibble_ts %>%
     alpha = 0.5
     , color = palette_light()[[1]]
   ) +
+  geom_line(
+    alpha = 0.5
+  ) +
+  geom_smooth(
+    se = F
+    , method = 'auto'
+    , color = 'red'
+  ) +
   labs(
-    title = "Closing Price of CCI30: Daily Scale"
-    , subtitle = "Source: www.cci30.com"
-    , y = "Closing Price"
+    title = "Monthly Returns: Log Scale"
+    , subtitle = "Source: https://cci30.com/ajax/getIndexHistory.php"
+    , caption = paste0(
+      "Based on daily closing prices from: "
+      , start.date
+      , " through "
+      , end.date
+    )
+    , y = "Count"
     , x = ""
   ) +
   theme_tq()
 
+m <- ts(df$Log.Daily.Return, frequency = 365.25, start(2015, 1))
+components <- decompose(m)
+plot(components)
+ggAcf(m)
+
 # Split data ####
-train_data <- df_tibble_ts %>%
+train_data <- df.ts.monthly %>%
   filter(Date <= training.stop.date)
 train_data
 
-test_data <- df_tibble_ts %>%
+test_data <- df.ts.monthly %>%
   filter(Date > training.stop.date)
 test_data
 
@@ -169,14 +172,8 @@ train_augmented <- train_data %>%
 train_augmented
 
 # make linear models
-fit_lm_a <- lm(Open ~ 
-  Date
-  + year
-  + half
-  + quarter
-  + month
-  + qday
-  + yday
+fit_lm_a <- lm(
+  Monthly.Log.Returns ~ Date
   + mweek
   , data = train_augmented, na.action = na.exclude)
 summary(fit_lm_a)

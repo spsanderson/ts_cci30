@@ -23,7 +23,7 @@ df <- read.csv("cci30_OHLCV.csv")
 rm(list = c('url','destfile'))
 
 # Format Date ####
-df$Date <- lubridate::mdy(df$Date)
+df$Date <- lubridate::ymd(df$Date)
 df.tibble <- as_tbl_time(df, index = Date)
 head(df.tibble, 1)
 tail(df.tibble, 1)
@@ -36,7 +36,7 @@ max.year  <- year(max.date)
 max.month <- month(max.date)
 
 # Coerce df to tibble ####
-df <- as.tibble(df)
+df <- as_tibble(df)
 
 featurePlot(
   x = df[,c("Open","High","Low","Volume")]

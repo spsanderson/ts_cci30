@@ -689,19 +689,27 @@ prophet.future <- make_future_dataframe(prophet.model, periods = 12, freq = 'mon
 tail(prophet.future, 12)
 
 prophet.forecast <- predict(prophet.model, prophet.future)
-tail(prophet.forecast[c('ds', 'yhat', 'yhat_lower', 'yhat_upper')],12)
+prophet.one.month.pred <- tail(prophet.forecast[c('ds', 'yhat', 'yhat_lower', 'yhat_upper')],12)
+prophet.pred <- head(prophet.one.month.pred$yhat, 1)
+print(prophet.pred)
 prophet.model.plt <- plot(
   prophet.model
   , prophet.forecast
-  , main = "Forecast for CCI30 Monthly Log Returns: 12-Month Forecast"
-  , sub = "Model Desc - fbProphet - Forecast = 0.190"
-  , xlab = ""
-  , ylab = ""
   ) + 
+  labs(
+    title = "Forecast for CCI30 Monthly Log Returns: 12-Month Forecast"
+    , subtitle = paste0(
+      "Model Desc - fbProphet - Forecast = "
+      , round(prophet.pred, 3)
+      )
+    , x = ""
+    , y = ""
+  ) +
   scale_color_tq() +
   scale_fill_tq() +
   theme_tq()
 print(prophet.model.plt)
+
 prophet.dyplt <- dyplot.prophet(prophet.model, prophet.forecast)
 print(prophet.dyplt)
 

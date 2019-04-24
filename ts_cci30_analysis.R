@@ -283,7 +283,8 @@ monthly.hw.fcast.plt <- sw_sweep(monthly.hw.fcast) %>%
     ,  subtitle = paste0(
       "Model Desc - "
       , model.desc.hw
-      , " - MAPE = "
+      , "\n"
+      , "MAPE = "
       , round(mape.hw, 2)
       , " - Forecast = "
       , round(hw.pred, 3)
@@ -343,7 +344,9 @@ monthly.snaive.plt <- sw_sweep(monthly.snaive.fit) %>%
     , x = ""
     , y = ""
     ,  subtitle = paste0(
-      "Model Desc - S-Naive - MAPE = "
+      "Model Desc - S-Naive"
+      , "\n"
+      , "MAPE = "
       , round(mape.snaive, 2)
       , " - Forecast = "
       , round(sn.pred, 3)
@@ -422,7 +425,8 @@ monthly.ets.fcast.plt <- sw_sweep(monthly.ets.fcast) %>%
     ,  subtitle = paste0(
       "Model Desc - "
       , monthly.ets.ref.model.desc
-      , " - MAPE = "
+      , "\n"
+      , "MAPE = "
       , round(mape.ets, 2)
       , " - Forecast = "
       , round(ets.pred, 3)
@@ -508,7 +512,8 @@ monthly.aa.fcast.plt <- sw_sweep(monthly.aa.fcast) %>%
     , subtitle = paste0(
       "Model Desc - "
       , monthly.aa.perf.model.desc
-      , " - MAPE = "
+      , "\n"
+      , "MAPE = "
       , round(mape.aa, 2)
       , " - Forecast = "
       , round(aa.pred, 3)
@@ -566,7 +571,9 @@ monthly.bagged.fcast.plt <- sw_sweep(monthly.bagged.fcast) %>%
     , x = ""
     , y = ""
     , subtitle = paste0(
-      "Model Desc - Bagged ETS - MAPE = "
+      "Model Desc - Bagged ETS"
+      , "\n"
+      , "MAPE = "
       , round(mape.bagged, 2)
       , " - Forecast = "
       , round(bagged.pred, 3)

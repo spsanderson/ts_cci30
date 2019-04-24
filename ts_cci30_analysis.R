@@ -611,16 +611,6 @@ checkresiduals(monthly.aa.fcast)
 checkresiduals(monthly.bagged.fcast)
 
 # Pick Model ####
-gridExtra::grid.arrange(
-  monthly.hw.fcast.plt
-  , monthly.snaive.plt
-  , monthly.ets.fcast.plt
-  , monthly.aa.fcast.plt
-  , monthly.bagged.fcast.plt
-  , nrow = 3
-  , ncol = 2
-)
-
 # 1 Month Pred
 hw.pred <- head(monthly.hw.pred$value, 1)
 hw.pred.lo.95 <- head(monthly.hw.pred$lo.95, 1)

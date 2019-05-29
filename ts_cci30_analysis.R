@@ -720,3 +720,23 @@ gridExtra::grid.arrange(
   , nrow = 3
   , ncol = 2
 )
+
+# AutoTS ####
+library(RemixAutoML)
+
+AutoTS(
+  data = df.ts.monthly
+  , TargetName = 'Monthly.Log.Returns'
+  , DateName = 'Date'
+  , FCPeriods = 1
+  , TimeUnit = "month"
+)
+
+AutoTS(
+  data = df.ts.tbl
+  , TargetName = 'Log.Daily.Return'
+  , DateName = 'Date'
+  , FCPeriods = 30
+  , HoldOutPeriods = round(nrow(df.ts.tbl) * 0.7, 0)
+  , TimeUnit = "day"
+)

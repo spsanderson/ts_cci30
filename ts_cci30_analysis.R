@@ -1,20 +1,21 @@
 # Load Libs ####
 # Time Series analysis of CCI30 crypto index
-library(tidyquant)
-library(timetk)
-library(tibbletime)
-library(sweep)
-library(anomalize)
-library(caret)
-library(forecast)
-library(funModeling)
-library(xts)
-library(fpp)
-library(forecast)
-library(lubridate)
-library(dplyr)
-library(urca)
-library(prophet)
+install.load::install_load(
+  "tidyquant"
+  ,"timetk"
+  , "tibbletime"
+  , "sweep"
+  , "anomalize"
+  , "caret"
+  , "forecast"
+  , "funModeling"
+  , "xts"
+  , "fpp"
+  , "lubridate"
+  , "tidyverse"
+  , "urca"
+  , "prophet"
+)
 
 # Daily OHLCV ####
 url <- "https://cci30.com/ajax/getIndexHistory.php"

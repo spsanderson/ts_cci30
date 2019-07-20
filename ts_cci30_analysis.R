@@ -94,6 +94,7 @@ df.ts.monthly <- df.ts.tbl %>%
     select = Close
     , periodReturn
     , period = "monthly"
+    # , period = "weekly"
     , type = "log"
     , col_rename = "Monthly.Log.Returns"
     )
@@ -216,6 +217,58 @@ plot(monthly.components)
 # Get stl object ####
 monthly.compl <- stl(monthly.sub.xts, s.window = "periodic")
 plot(monthly.compl)
+
+dfa_tsa <- df.ts.tbl %>%
+  time_decompose(Log.Daily.Return, method = "stl") %>%
+  anomalize(remainder, method = "gesd") %>%
+  time_recompose()
+
+dfa_tsa %>%
+  plot_anomalies(
+    ncol = 3
+    , alpha_dots = 0.25
+  ) +
+  xlab("") +
+  ylab("Daily Log Returns") +
+  labs(
+    title = "Anomaly Detection for CCI30 Daily Log Returns"
+    , subtitle = "Method: GESD"
+  )
+
+dfa_tsa %>%
+  plot_anomaly_decomposition() + 
+  xlab("Dailyy Log Return") + 
+  ylab("Value") +
+  labs(
+    title = "Anomaly Detection for CCI30 Daily Log Return"
+    , subtitle = "Method: GESD"
+  )
+
+dfa_tsb <- df.ts.monthly %>%
+  time_decompose(Monthly.Log.Returns, method = "stl") %>%
+  anomalize(remainder, method = "gesd") %>%
+  time_recompose()
+
+dfa_tsb %>%
+  plot_anomalies(
+    ncol = 3
+    , alpha_dots = 0.25
+  ) +
+  xlab("") +
+  ylab("Daily Log Returns") +
+  labs(
+    title = "Anomaly Detection for CCI30 Monthly Log Returns"
+    , subtitle = "Method: GESD"
+  )
+
+dfa_tsb %>%
+  plot_anomaly_decomposition() +
+  xlab("Monthly Log Return") +
+  ylab("Value") +
+  labs(
+    title = "Anomaly Detection for CCI30 Monthly Log Returns"
+    , subtitle = "Method: GESD"
+  )
 
 # HW Model ####
 monthly.fit.hw <- HoltWinters(monthly.sub.xts)
@@ -341,7 +394,7 @@ monthly.snaive.plt <- sw_sweep(monthly.snaive.fit) %>%
     size = 1
   ) +
   labs(
-    title = "Forecast for CCI30 Monthly Log Returns: 12-Month Forecast"
+    title = "Forecast for CCI30 Weeklyly Log Returns: 12-Week Forecast"
     , x = ""
     , y = ""
     ,  subtitle = paste0(

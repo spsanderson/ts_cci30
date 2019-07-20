@@ -724,13 +724,14 @@ gridExtra::grid.arrange(
 # AutoTS ####
 library(RemixAutoML)
 
-AutoTS(
+ats.output <- AutoTS(
   data = df.ts.monthly
   , TargetName = 'Monthly.Log.Returns'
   , DateName = 'Date'
   , FCPeriods = 1
   , TimeUnit = "month"
 )
+
 
 AutoTS(
   data = df.ts.tbl

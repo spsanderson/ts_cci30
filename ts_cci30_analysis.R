@@ -782,7 +782,7 @@ ats.output <- AutoTS(
   data = df.ts.monthly
   , TargetName = 'Monthly.Log.Returns'
   , DateName = 'Date'
-  , FCPeriods = 1
+  , FCPeriods = 12
   , TimeUnit = "month"
 )
 
@@ -794,4 +794,4 @@ AutoTS(
   , FCPeriods = 30
   , HoldOutPeriods = round(nrow(df.ts.tbl) * 0.7, 0)
   , TimeUnit = "day"
-)
+) 

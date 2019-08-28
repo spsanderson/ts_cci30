@@ -170,7 +170,7 @@ df.ts.monthly %>%
   ) +
   theme_tq()
 
-m <- ts(df$Log.Daily.Return, frequency = 365.25, start(min.year, min.month))
+m <- ts(df$Log.Daily.Return, frequency = 12, start(min.year, min.month))
 components <- decompose(m)
 plot(components)
 ggAcf(m)

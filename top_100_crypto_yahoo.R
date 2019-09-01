@@ -125,8 +125,36 @@ for (i in 1:length(crypto_symbol)){
 }
 
 # coerce to tibble time
-df <- as_tbl_time(df, index = 'Time')
+df <- df %>%
+  as_tbl_time(df, index = 'Time') %>%
+  select(
+    Time
+    , Asset
+    , Adj_Close
+    , Monthly_Log_Returns
+  )
+
 df_sharpe <- df_sharpe %>% drop_na()
+# Merge df and df_sharpe to only get those with VarSharpe
+df_merged <- merge(
+  df
+  , df_sharpe
+  , by = "Asset"
+) %>%
+  arrange(
+    Time
+    , Asset
+  )
+
+df_merged %>%
+  ggplot(
+    mapping = aes(
+      x = Monthly_Log_Returns
+    )
+  ) + 
+  geom_histogram(
+    binwidth = 0.1
+  )
 
 target <- "WINGS-USD"
 

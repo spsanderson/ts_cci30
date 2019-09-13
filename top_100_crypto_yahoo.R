@@ -156,13 +156,14 @@ df_merged %>%
     binwidth = 0.1
   )
 
-target <- "WINGS-USD"
+target <- "ZEN-USD"
+test_data <- dplyr::filter(df_merged, Asset == target)
 
 AutoTS(
-  data = adj_p
-  , TargetName = "Adj_Close"
+  data = test_data
+  , TargetName = "Monthly_Log_Returns"
   , DateName = 'Time'
-  , FCPeriods = 30
-  , HoldOutPeriods = round(nrow(adj_p) * 0.7, 0)
-  , TimeUnit = "day"
+  , FCPeriods = 12
+  , HoldOutPeriods = round(nrow(test_data) * 0.7, 0)
+  , TimeUnit = "month"
 )

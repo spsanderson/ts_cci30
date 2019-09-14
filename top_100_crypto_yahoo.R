@@ -147,6 +147,8 @@ df_merged <- merge(
   )
 
 df_merged %>%
+  filter(Monthly_Log_Returns != "Inf") %>%
+  filter(Monthly_Log_Returns != "NaN") %>%
   ggplot(
     mapping = aes(
       x = Monthly_Log_Returns
@@ -154,7 +156,16 @@ df_merged %>%
   ) + 
   geom_histogram(
     binwidth = 0.1
-  )
+    , color = "black"
+    , aes(fill = ..count..)
+  ) +
+  labs(
+    title = "Histogram Montly Log Retrns"
+    , y = ""
+    , x = ""
+  ) +
+  scale_fill_gradient("Count", low = "blue", high = "red", guide = F) +
+  theme_tq()
 
 target <- "ZEN-USD"
 test_data <- dplyr::filter(df_merged, Asset == target)

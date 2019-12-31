@@ -167,7 +167,7 @@ df_merged %>%
   scale_fill_gradient("Count", low = "blue", high = "red", guide = F) +
   theme_tq()
 
-target <- "ARK-USD"
+target <- "AE-USD"
 test_data <- dplyr::filter(df_merged, Asset == target)
 
 AutoTS(

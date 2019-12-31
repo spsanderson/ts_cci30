@@ -170,10 +170,11 @@ df.ts.monthly %>%
   ) +
   theme_tq()
 
-m <- ts(df$Log.Daily.Return, frequency = 12, start(min.year, min.month))
+m <- ts(df$Log.Daily.Return, frequency = 365, start(min.year, min.month))
 components <- decompose(m)
 plot(components)
-ggAcf(m)
+ggAcf(m) + theme_tq() + labs(title = "ACF of Daily Log Returns")
+
 
 # Split data ####
 train_data <- df.ts.monthly %>%
@@ -219,7 +220,7 @@ monthly.compl <- stl(monthly.sub.xts, s.window = "periodic")
 plot(monthly.compl)
 
 dfa_tsa <- df.ts.tbl %>%
-  time_decompose(Log.Daily.Return, method = "stl") %>%
+  time_decompose(Log.Daily.Return, method = "twitter") %>%
   anomalize(remainder, method = "gesd") %>%
   time_recompose()
 
@@ -232,12 +233,12 @@ dfa_tsa %>%
   ylab("Daily Log Returns") +
   labs(
     title = "Anomaly Detection for CCI30 Daily Log Returns"
-    , subtitle = "Method: GESD"
+    , subtitle = "Twitter and GEST Methods"
   )
 
 dfa_tsa %>%
   plot_anomaly_decomposition() + 
-  xlab("Dailyy Log Return") + 
+  xlab("Daily Log Return") + 
   ylab("Value") +
   labs(
     title = "Anomaly Detection for CCI30 Daily Log Return"
@@ -245,7 +246,7 @@ dfa_tsa %>%
   )
 
 dfa_tsb <- df.ts.monthly %>%
-  time_decompose(Monthly.Log.Returns, method = "stl") %>%
+  time_decompose(Monthly.Log.Returns, method = "twitter") %>%
   anomalize(remainder, method = "gesd") %>%
   time_recompose()
 
@@ -258,7 +259,7 @@ dfa_tsb %>%
   ylab("Daily Log Returns") +
   labs(
     title = "Anomaly Detection for CCI30 Monthly Log Returns"
-    , subtitle = "Method: GESD"
+    , subtitle = "Twitter and GESD Methods"
   )
 
 dfa_tsb %>%
@@ -394,7 +395,7 @@ monthly.snaive.plt <- sw_sweep(monthly.snaive.fit) %>%
     size = 1
   ) +
   labs(
-    title = "Forecast for CCI30 Weeklyly Log Returns: 12-Week Forecast"
+    title = "Forecast for CCI30 Monthly Log Returns: 12-Week Forecast"
     , x = ""
     , y = ""
     ,  subtitle = paste0(

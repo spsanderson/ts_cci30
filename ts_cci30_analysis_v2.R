@@ -209,6 +209,13 @@ df.ts %>%
     , subtitle = "Twitter and GEST Methods"
   )
 
+# Make tsibble ---
+# Add observed cleaned to df.ts in both a tibble and tsibble
+df_tbl <- df.ts
+class(df_tbl)
+
+df_tsbl <- as_tsibble(df_tbl, index = Date)
+class(df_tsbl)
 # Make XTS object ####
 # Forecast with FPP, will need to convert data to an xts/ts object
 monthly.log.ret.ts <- ts(

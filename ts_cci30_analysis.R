@@ -52,7 +52,8 @@ featurePlot(
 df <- df %>% tq_mutate(
   select = Close
   , mutate_fun = dailyReturn
-  )
+  , col_rename = "Daily_Return"
+)
 head(df, 5)
 
 df <- df %>% tq_mutate(
@@ -60,13 +61,11 @@ df <- df %>% tq_mutate(
   , mutate_fun = periodReturn
   , period = "daily"
   , type = "log"
+  , col_rename = "Daily_Log_Return"
 )
 head(df, 5)
 
-df <- rename(df, Log.Daily.Return = daily.returns..1)
-head(df, 5)
-
-profiling_num(df$Log.Daily.Return)
+profiling_num(df$Daily_Log_Return)
 
 # Create Time Aware Tibble ####
 df.ts.tbl <- as_tbl_time(df, index = Date)
@@ -80,7 +79,7 @@ df.ts <- tk_ts(
   start = c(min.year, min.month)
   , end = c(max.year, max.month)
   , frequency = 365
-  )
+)
 class(df.ts)
 
 # timetk_index <- tk_index(tk_d, timetk_idx = TRUE)
@@ -97,7 +96,7 @@ df.ts.monthly <- df.ts.tbl %>%
     # , period = "weekly"
     , type = "log"
     , col_rename = "Monthly.Log.Returns"
-    )
+  )
 head(df.ts.monthly, 5)
 
 # Get some Params ####

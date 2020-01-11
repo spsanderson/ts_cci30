@@ -101,8 +101,8 @@ head(df.ts, 5)
 
 # Get some Params ####
 # get max and min discharges
-max.daily.log.return <- max(df.ts[,ncol(df.ts)])
-min.daily.log.return <- min(df.ts[,ncol(df.ts)])
+max.log.return <- max(df.ts[,ncol(df.ts)])
+min.log.return <- min(df.ts[,ncol(df.ts)])
 start.date <- min(df.ts$Date)
 end.date   <- max(df.ts$Date)
 return_col <- df.ts[,ncol(df.ts)] %>% pull()
@@ -192,6 +192,22 @@ df.ts %>%
     , subtitle = "Twitter and GEST Methods"
   )
 
+df.ts %>%
+  tibbletime::as_tbl_time(index = Date) %>%
+  time_decompose(value_column, method = "twitter") %>%
+  anomalize(remainder, method = "gesd") %>%
+  plot_anomaly_decomposition() +
+  xlab("") +
+  ylab(str_c(str_to_title(time_param), "Log Returns", sep = " ")) +
+  labs(
+    title = str_c(
+      "Anomaly Detection for CCI30"
+      , str_to_title(time_param)
+      , "Log Returns"
+      , sep = " "
+    )
+    , subtitle = "Twitter and GEST Methods"
+  )
 
 # Make XTS object ####
 # Forecast with FPP, will need to convert data to an xts/ts object

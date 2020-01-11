@@ -85,8 +85,10 @@ df.ts %>%
   autoplot() +
   theme_tq()
 
-# Make a log returns of close object
+# Time Parameter ----
 time_param <- "monthly"
+
+# Make a log returns of close object
 df.ts <- df.tibble %>%
   tq_transmute(
     select = Close

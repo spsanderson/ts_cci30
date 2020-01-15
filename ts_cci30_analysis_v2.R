@@ -3,7 +3,7 @@
 install.load::install_load(
   "tidyquant"
   ,"timetk"
-  # , "tibbletime"
+  , "tibbletime"
   , "tsibble"
   , "sweep"
   , "anomalize"
@@ -16,6 +16,8 @@ install.load::install_load(
   , "tidyverse"
   , "urca"
   , "prophet"
+  , "fable"
+  , "feasts"
 )
 
 # Daily OHLCV ####
@@ -25,9 +27,16 @@ download.file(url, destfile = destfile)
 df <- read.csv("cci30_OHLCV.csv")
 class(df)
 
+# Get month end of file - last day of previous month
 # Format Date ####
 df$Date <- lubridate::ymd(df$Date)
-df.tibble <- as_tsibble(df, index = Date)
+df <- df %>%
+ mutate(month_start = floor_date(Date, unit = "month") - period(1, units = "day"))
+
+df.tibble <- as_tsibble(df, index = Date) %>%
+  filter(Date <= max(month_start)) %>%
+  select(Date, Open, High, Low, Close, Volume)
+
 class(df.tibble)
 head(df.tibble, 1)
 tail(df.tibble, 1)
@@ -43,7 +52,7 @@ max.month <- month(max.date)
 df.tibble <- as_tibble(df.tibble)
 featurePlot(
   x = df.tibble[,c("Open","High","Low","Volume")]
-  , y = df$Close
+  , y = df.tibble$Close
   , plot = "pairs"
   , auto.key = list(columns = 4)
   , na.action(na.omit)
@@ -68,20 +77,20 @@ head(df.tibble, 5)
 profiling_num(df.tibble$Daily_Log_Return)
 
 # Make ts object
-df.ts <- tk_ts(
+df_ts <- tk_ts(
   df.tibble$Daily_Log_Return,
   start = c(min.year, min.month)
   , end = c(max.year, max.month)
   , frequency = 365
 )
-class(df.ts)
-has_timetk_idx(df.ts)
+class(df_ts)
+has_timetk_idx(df_ts)
 
-mstl(df.ts)%>%
+mstl(df_ts)%>%
   autoplot(col = T) +
   theme_tq()
 
-df.ts %>%
+df_ts %>%
   autoplot() +
   theme_tq()
 
@@ -131,7 +140,7 @@ df.ts %>%
     se = F
     , method = 'loess'
     , color = 'red'
-    , span = 1/4
+    , span = 1/12
   ) +
   labs(
     title = str_c(str_to_title(time_param), " Returns: Log Scale")
@@ -146,7 +155,6 @@ df.ts %>%
     , x = ""
   ) +
   theme_tq()
-
 
 ggAcf(return_col) + 
   theme_tq() + 
@@ -168,6 +176,30 @@ ggPacf(return_col) +
       , sep = " "
     )
   )
+
+ggtsdisplay(return_col)
+gghistogram(return_col)
+ggseasonplot(
+  tk_ts(
+    return_col
+    , frequency = 12
+    , start = c(min.year, min.month)
+    , end = c(max.year, max.month)
+    )
+  ) +
+  labs(
+    title = str_c(
+      "Seasonal plot:"
+      , str_to_title(time_param)
+      , "Log Returns"
+      , sep = " "
+    )
+  ) +
+  theme_tq() +
+  theme(
+    axis.text.x = element_blank()
+    , axis.ticks.x = element_blank()
+  ) 
 
 # Anomalize df.ts ----
 value_column <- ncol(df.ts)
@@ -214,8 +246,65 @@ df.ts %>%
 df_tbl <- df.ts
 class(df_tbl)
 
+df_tbl <- df_tbl %>%
+  tibbletime::as_tbl_time(index = Date) %>%
+  time_decompose(value_column, method = "twitter") %>%
+  anomalize(remainder, method = "gesd") %>%
+  clean_anomalies() %>%
+  time_recompose() %>%
+  select(Date, observed, anomaly, observed_cleaned)
+
+# Plot observed vs observed_cleaned
+df_tbl %>%
+  ggplot(
+    mapping = aes(
+      x = Date
+      , y = observed
+    )
+  ) +
+  geom_point() +
+  geom_line() +
+  geom_point(
+    mapping = aes(
+      y = observed_cleaned
+    )
+    , color = "red"
+  ) +
+  geom_line(
+    mapping = aes(
+      y = observed_cleaned
+    )
+    , color = "red"
+  ) +
+  theme_tq() +
+  labs(
+    title = "Observed Log Returns vs. Observed Cleaned from clean_anomalies()"
+    , y = "Log Return"
+    , x = ""
+  )
+
 df_tsbl <- as_tsibble(df_tbl, index = Date)
 class(df_tsbl)
+
+df_tsbl %>% 
+  STL(observed_cleaned ~ season(window = Inf)) %>% 
+  autoplot()
+
+# Modeling ----
+# Make a long table format
+df_nested_tbl <- df_tbl %>% 
+  pivot_longer(
+    cols = c(observed, observed_cleaned)
+    , names_to = "group"
+    , values_to = "log_return"
+  ) %>%
+  select(
+    Date, group, log_return
+  ) %>%
+  group_by(group) %>%
+  nest()
+
+
 # Make XTS object ####
 # Forecast with FPP, will need to convert data to an xts/ts object
 monthly.log.ret.ts <- ts(

@@ -76,24 +76,6 @@ df.tibble <- df.tibble %>%
 head(df.tibble, 5)
 profiling_num(df.tibble$Daily_Log_Return)
 
-# Make ts object
-df_ts <- tk_ts(
-  df.tibble$Daily_Log_Return,
-  start = c(min.year, min.month)
-  , end = c(max.year, max.month)
-  , frequency = 365
-)
-class(df_ts)
-has_timetk_idx(df_ts)
-
-mstl(df_ts)%>%
-  autoplot(col = T) +
-  theme_tq()
-
-df_ts %>%
-  autoplot() +
-  theme_tq()
-
 # Time Parameter ----
 time_param <- "monthly"
 
@@ -140,7 +122,10 @@ df.ts %>%
     se = F
     , method = 'loess'
     , color = 'red'
-    , span = 1/12
+    , span = case_when(
+      time_param == "monthly" ~ 1/4
+      , time_param == "weekly" ~ 1/12
+    )  #1/12
   ) +
   labs(
     title = str_c(str_to_title(time_param), " Returns: Log Scale")
@@ -182,7 +167,10 @@ gghistogram(return_col)
 ggseasonplot(
   tk_ts(
     return_col
-    , frequency = 12
+    , frequency = case_when(
+      time_param == "monthly" ~ 12
+      , time_param == "weekly" ~ 52
+    )
     , start = c(min.year, min.month)
     , end = c(max.year, max.month)
     )
@@ -221,7 +209,7 @@ df.ts %>%
       , "Log Returns"
       , sep = " "
     )
-    , subtitle = "Twitter and GEST Methods"
+    , subtitle = "Twitter and GESD Methods"
   )
 
 df.ts %>%
@@ -238,7 +226,7 @@ df.ts %>%
       , "Log Returns"
       , sep = " "
     )
-    , subtitle = "Twitter and GEST Methods"
+    , subtitle = "Twitter and GESD Methods"
   )
 
 # Make tsibble ---
@@ -278,32 +266,266 @@ df_tbl %>%
   ) +
   theme_tq() +
   labs(
-    title = "Observed Log Returns vs. Observed Cleaned from clean_anomalies()"
+    title = "Observed Log Returns vs. Observed Cleaned"
+    , subtitle = "Anomalies cleaned with anomalize::clean_anomalies()"
     , y = "Log Return"
     , x = ""
   )
 
-df_tsbl <- as_tsibble(df_tbl, index = Date)
-class(df_tsbl)
+# Convert to tsibble ----
+ifelse(
+  time_param == "weekly"
+  , df_tsbl <- df_tbl %>%
+    mutate(date_column = yearweek(Date)) %>%
+    select(date_column, observed, observed_cleaned) %>%
+    as_tsibble(index = date_column) 
+  , df_tsbl <- df_tbl %>%
+    mutate(date_column = yearmonth(Date)) %>%
+    select(date_column, observed, observed_cleaned) %>%
+    as_tsibble(index = date_column)
+)
 
 df_tsbl %>% 
   STL(observed_cleaned ~ season(window = Inf)) %>% 
-  autoplot()
+  autoplot() +
+  theme_tq()
+
+df_tsbl %>%
+  STL(observed ~ season(window = Inf)) %>%
+  autoplot() +
+  theme_tq()
+
+df_tsbl %>%
+  gg_tsdisplay(observed)
+
+df_tsbl %>%
+  gg_tsdisplay(observed_cleaned)
 
 # Modeling ----
-# Make a long table format
-df_nested_tbl <- df_tbl %>% 
-  pivot_longer(
-    cols = c(observed, observed_cleaned)
-    , names_to = "group"
-    , values_to = "log_return"
-  ) %>%
-  select(
-    Date, group, log_return
-  ) %>%
-  group_by(group) %>%
-  nest()
+models_observed <- df_tsbl %>%
+  model(
+    ets = ETS(observed)
+    , arima = ARIMA(observed)
+    , nnetar = NNETAR(observed, n_nodes = 10)
+  )
 
+models_observed_cleaned <- df_tsbl %>%
+  model(
+    ets = ETS(observed_cleaned)
+    , arima = ARIMA(observed_cleaned)
+    , nnetar = NNETAR(observed_cleaned, n_nodes = 10)
+  )
+
+models_ob_acc <- accuracy(models_observed) %>%
+  arrange(MAE) %>%
+  mutate(model = .model %>% as_factor()) %>%
+  mutate(model_numeric = .model %>% as_factor() %>% as.numeric())
+
+models_obc_acc <- accuracy(models_observed_cleaned) %>%
+  arrange(MAE) %>%
+  mutate(model = .model %>% as_factor()) %>%
+  mutate(model_numeric = .model %>% as_factor() %>% as.numeric())
+
+models_ob_tidy <- augment(models_observed) %>%
+  mutate(key = "actual") %>%
+  mutate(data_type = "observed") %>%
+  set_names(
+    "Model"
+    , "Date_Column"
+    , "Value"
+    , "Fitted"
+    , "Residuals"
+    , "key"
+    , "data_type"
+  ) %>%
+  as_tibble()
+
+models_obc_tidy <- augment(models_observed_cleaned) %>%
+  mutate(key = "actual") %>%
+  mutate(data_type = "observed_cleaned") %>%
+  set_names(
+    "Model"
+    , "Date_Column"
+    , "Value"
+    , "Fitted"
+    , "Residuals"
+    , "key"
+    , "data_type"
+  ) %>%
+  as_tibble()
+
+model_desc_ob <- models_observed %>%
+  as_tibble() %>%
+  gather() %>%
+  mutate(model_desc = print(value)) %>%
+  select(key, model_desc) %>%
+  set_names("model", "model_desc")
+
+model_desc_obc <- models_observed_cleaned %>%
+  as_tibble() %>%
+  gather() %>%
+  mutate(model_desc = print(value)) %>%
+  select(key, model_desc) %>%
+  set_names("model", "model_desc")
+
+model_ob_desc <- model_desc_ob$model_desc
+model_obc_desc <- model_desc_obc$model_desc
+
+# Plot Residuals ----
+a <- models_ob_tidy %>%
+  inner_join(models_ob_acc, by = c("Model" = ".model")) %>%
+  inner_join(model_desc_ob, by = c("Model" = "model")) %>%
+  select(Model, Date_Column, model, model_desc, Residuals, key) %>%
+  mutate(data_type = "observed")
+b <- models_obc_tidy %>%
+  inner_join(models_obc_acc, by = c("Model" = ".model")) %>%
+  inner_join(model_desc_obc, by = c("Model" = "model")) %>%
+  select(Model, Date_Column, model, model_desc, Residuals, key) %>%
+  mutate(data_type = "observed_cleaned")
+c <- union_all(a, b)
+
+c %>%
+  ggplot(
+    mapping = aes(
+      x = Date_Column
+      , y = Residuals
+      , group = data_type
+      , color = data_type
+    )
+  ) + 
+  geom_hline(yintercept = 0) +
+  geom_line() +
+  facet_wrap(~ model, ncol = 1, scales = "free_y") +
+  theme_tq() + 
+  labs(
+    x = ""
+    , title = "Model Residuals of Observed vs. Observed Cleaned by Model"
+    , subtitle = "Anomalies cleaned with anomalize::clean_anomalies()"
+  )
+
+c %>%
+  ggplot(
+    mapping = aes(
+      x = Date_Column
+      , y = Residuals
+      , group = model
+      , color = model
+    )
+  ) +
+  geom_hline(yintercept = 0) +
+  geom_line() +
+  facet_wrap(~ data_type, ncol = 1, scales = "free_y") +
+  theme_tq() + 
+  labs(
+    x = ""
+    , title = "Model Residuals by Observed vs. Observed Cleaned"
+    , subtitle = "Anomalies cleaned with anomalize::clean_anomalies()"
+  )
+
+c %>%
+  ggplot(
+    mapping = aes(
+      x = Residuals
+      , group = data_type
+      , color = data_type
+      , fill = data_type
+    )
+  ) +
+  geom_density(alpha = 0.314) +
+  facet_wrap(~ model, ncol = 1, scales = "free_y") +
+  theme_tq() + 
+  labs(
+    x = ""
+    , title = "Model Residuals by Observed vs. Observed Cleaned"
+    , subtitle = "Anomalies cleaned with anomalize::clean_anomalies()"
+  )
+
+c %>%
+  ggplot(
+    mapping = aes(
+      x = Residuals
+      , group = model
+      , color = model
+      , fill = model
+    )
+  ) +
+  geom_density(alpha = 0.314) +
+  facet_wrap(~ data_type, ncol = 1, scales = "free_y") +
+  theme_tq() + 
+  labs(
+    x = ""
+    , title = "Model Residuals by Observed vs. Observed Cleaned"
+    , subtitle = "Anomalies cleaned with anomalize::clean_anomalies()"
+  )
+
+# Forecast ----
+models_ob_fcast <- models_observed %>%
+  forecast(h = ifelse(time_param == "weekly", 52, 12)) %>%
+  as_tibble() %>%
+  select(.model, date_column, observed) %>%
+  mutate(key = "forecast") %>%
+  mutate(data_type = "observed") %>%
+  set_names("Model","Date_Column", "Value", "key", "data_type")
+
+models_obc_fcast <- models_observed_cleaned %>%
+  forecast(h = ifelse(time_param == "weekly", 52, 12)) %>%
+  as_tibble() %>%
+  select(.model, date_column, observed_cleaned) %>%
+  mutate(key = "forecast") %>%
+  mutate(data_type = "observed_cleaned") %>%
+  set_names("Model","Date_Column", "Value", "key", "data_type")
+
+models_fcast <- union_all(models_ob_fcast, models_obc_fcast)
+
+winning_ob_model_lbl <- models_ob_acc %>%
+  filter(model_numeric == 1) %>%
+  left_join(model_desc_ob, by = c(".model" = "model")) %>%
+  select(model_desc)
+
+winning_obc_model_lbl <- models_obc_acc %>%
+  filter(model_numeric == 1) %>%
+  left_join(model_desc_obc, by = c(".model" = "model")) %>%
+  select(model_desc)
+
+tidy_model_tbl <- union_all(models_ob_tidy, models_obc_tidy)
+
+tidy_model_tbl %>%
+  ggplot(
+    mapping = aes(
+      x = Date_Column
+      , y = Fitted
+      , group = Model
+    )
+  ) +
+  geom_point(
+    alpha = 0.5
+    , color = palette_light()[[1]]
+  ) +
+  geom_line(
+    alpha = 0.5
+    , size = 1
+  ) +
+  geom_point(
+    data = models_fcast
+    , mapping = aes(
+      x = Date_Column
+      , y = Value
+      , group = Model
+      , color = Model
+    )
+  ) +
+  geom_line(
+    data = models_fcast
+    , mapping = aes(
+      x = Date_Column
+      , y = Value
+      , group = Model
+      , color = Model
+    )
+  ) +
+  facet_wrap(~ data_type, scales = "free_y") +
+  theme_tq() +
+  scale_color_tq()
 
 # Make XTS object ####
 # Forecast with FPP, will need to convert data to an xts/ts object

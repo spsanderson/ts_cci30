@@ -493,8 +493,8 @@ tidy_model_tbl %>%
   ggplot(
     mapping = aes(
       x = Date_Column
-      , y = Fitted
-      , group = Model
+      , y = Value
+      , color = Model
     )
   ) +
   geom_point(
@@ -505,6 +505,7 @@ tidy_model_tbl %>%
     alpha = 0.5
     , size = 1
   ) +
+  facet_wrap(~ data_type, scales = "free_y", ncol = 1) +
   geom_point(
     data = models_fcast
     , mapping = aes(
@@ -523,9 +524,15 @@ tidy_model_tbl %>%
       , color = Model
     )
   ) +
-  facet_wrap(~ data_type, scales = "free_y") +
   theme_tq() +
-  scale_color_tq()
+  scale_color_tq() +
+  labs(
+    title = "CCI30 Forecast of Observed vs Cleaned Observations"
+    , subtitle = "Observed Cleaned data obtained with anomalize::clean_anomalies()"
+    , caption = str_c("Time Parameter is set to:", str_to_title(time_param), sep = " ")
+    , x = ""
+    , color = "Models:"
+  )
 
 # Make XTS object ####
 # Forecast with FPP, will need to convert data to an xts/ts object

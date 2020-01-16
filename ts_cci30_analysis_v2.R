@@ -102,8 +102,6 @@ return_col <- df.ts[,ncol(df.ts)] %>% pull()
 training.region <- round(nrow(df.ts) * 0.7, 0)
 test.region     <- nrow(df.ts) - training.region
 
-plot.ts(return_col)
-
 # Plot intial Data ----
 df.ts %>%
   ggplot(

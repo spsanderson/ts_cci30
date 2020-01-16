@@ -549,7 +549,7 @@ AutoTS(
   , DateName = "Date"
   , FCPeriods = ifelse(time_param == "weekly", 52, 12)
   , TimeUnit = ifelse(time_param == "weekly","week","month")
-  , HoldOutPeriods = round(nrow(df.ts.tbl) * 0.7, 0)
+  , HoldOutPeriods = round(nrow(df_tbl) * 0.7, 0)
 )
 
 AutoTS(
@@ -558,7 +558,7 @@ AutoTS(
   , DateName = "Date"
   , FCPeriods = ifelse(time_param == "weekly", 52, 12)
   , TimeUnit = ifelse(time_param == "weekly","week","month")
-  , HoldOutPeriods = round(nrow(df.ts.tbl) * 0.7, 0)
+  , HoldOutPeriods = round(nrow(df_tbl) * 0.7, 0)
 )
 
 AutoXGBoostCARMA(

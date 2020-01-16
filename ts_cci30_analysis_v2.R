@@ -327,6 +327,20 @@ models_obc_acc <- accuracy(models_observed_cleaned) %>%
   mutate(model = .model %>% as_factor()) %>%
   mutate(model_numeric = .model %>% as_factor() %>% as.numeric())
 
+model_acc_tbl <- models_ob_acc %>% 
+  mutate(key = "observed") %>% 
+  union(
+    models_obc_acc %>% mutate(key = "observed_cleaned")
+    , by = c(".model" = ".model")
+    ) %>% 
+  arrange(model_numeric) %>%
+  select(
+    model
+    , ME:ACF1
+    , key
+  ) %>%
+  rename("Model" = "model")
+
 models_ob_tidy <- augment(models_observed) %>%
   mutate(key = "actual") %>%
   mutate(data_type = "observed") %>%
@@ -354,6 +368,8 @@ models_obc_tidy <- augment(models_observed_cleaned) %>%
     , "data_type"
   ) %>%
   as_tibble()
+
+tidy_model_tbl <- union_all(models_ob_tidy, models_obc_tidy)
 
 model_desc_ob <- models_observed %>%
   as_tibble() %>%
@@ -493,8 +509,6 @@ winning_obc_model_lbl <- models_obc_acc %>%
   filter(model_numeric == 1) %>%
   left_join(model_desc_obc, by = c(".model" = "model")) %>%
   select(model_desc)
-
-tidy_model_tbl <- union_all(models_ob_tidy, models_obc_tidy)
 
 tidy_model_tbl %>%
   ggplot(

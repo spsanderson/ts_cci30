@@ -551,8 +551,33 @@ tidy_model_tbl %>%
   scale_color_tq() +
   labs(
     title = "CCI30 Forecast of Observed vs Cleaned Observations"
-    , subtitle = "Observed Cleaned data obtained with anomalize::clean_anomalies()"
-    , caption = str_c("Time Parameter is set to:", str_to_title(time_param), sep = " ")
+    , subtitle = str_c(
+      "Observed Cleaned data obtained with anomalize::clean_anomalies()"
+      ,"\n"
+      , "Winning Model Observed Data -"
+      , winning_ob_model_lbl$model_desc
+      , "- Model Acc:"
+      , model_acc_tbl %>% 
+        filter(key == "observed") %>%
+        select(MAE) %>%
+        mutate(MAE = round(MAE, 4)) %>%
+        top_n(-1) 
+      , "\n"
+      , "Winning Model Observed Cleaned Data -"
+      , winning_obc_model_lbl$model_desc
+      , "- Model Acc:"
+      , model_acc_tbl %>% 
+        filter(key == "observed_cleaned") %>%
+        select(MAE) %>%
+        mutate(MAE = round(MAE, 4)) %>%
+        top_n(-1)
+      , sep = " "
+    )
+    , caption = str_c(
+      "Time Parameter is set to:"
+      , str_to_title(time_param)
+      , sep = " "
+      )
     , x = ""
     , y = str_c(str_to_title(time_param), "Log Returns", sep = " ")
     , color = "Models:"

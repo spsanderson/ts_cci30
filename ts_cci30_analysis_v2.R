@@ -78,7 +78,7 @@ head(df.tibble, 5)
 profiling_num(df.tibble$Daily_Log_Return)
 
 # Time Parameter ----
-time_param <- "monthly"
+time_param <- "weekly"
 
 # Make a log returns of close object
 df.ts <- df.tibble %>%
@@ -325,7 +325,7 @@ models_ob_acc <- accuracy(models_observed) %>%
   mutate(model_numeric = .model %>% as_factor() %>% as.numeric())
 
 models_obc_acc <- accuracy(models_observed_cleaned) %>%
-  arrange(MAE) %>%
+  arrange(MAPE) %>%
   mutate(model = .model %>% as_factor()) %>%
   mutate(model_numeric = .model %>% as_factor() %>% as.numeric())
 
@@ -559,8 +559,8 @@ tidy_model_tbl %>%
       , "- Model Acc:"
       , model_acc_tbl %>% 
         filter(key == "observed") %>%
-        select(MAE) %>%
-        mutate(MAE = round(MAE, 4)) %>%
+        select(MAPE) %>%
+        mutate(MAPE = round(MAPE, 4)) %>%
         top_n(-1) 
       , "\n"
       , "Winning Model Observed Cleaned Data -"
@@ -568,8 +568,8 @@ tidy_model_tbl %>%
       , "- Model Acc:"
       , model_acc_tbl %>% 
         filter(key == "observed_cleaned") %>%
-        select(MAE) %>%
-        mutate(MAE = round(MAE, 4)) %>%
+        select(MAPE) %>%
+        mutate(MAPE = round(MAPE, 4)) %>%
         top_n(-1)
       , sep = " "
     )
@@ -584,7 +584,7 @@ tidy_model_tbl %>%
   )
 
 # AutoTS() ----
-AutoTS(
+ats_ob <- AutoTS(
   data = df_tbl
   , TargetName = "observed"
   , DateName = "Date"
@@ -592,8 +592,9 @@ AutoTS(
   , TimeUnit = ifelse(time_param == "weekly","week","month")
   , HoldOutPeriods = round(nrow(df_tbl) * 0.7, 0)
 )
+print(ats_ob)
 
-AutoTS(
+ats_obc <- AutoTS(
   data = df_tbl
   , TargetName = "observed_cleaned"
   , DateName = "Date"
@@ -601,6 +602,7 @@ AutoTS(
   , TimeUnit = ifelse(time_param == "weekly","week","month")
   , HoldOutPeriods = round(nrow(df_tbl) * 0.7, 0)
 )
+print(ats_obc)
 
 AutoXGBoostCARMA(
   data = tidy_model_tbl

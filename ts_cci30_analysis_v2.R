@@ -10,12 +10,12 @@ install.load::install_load(
   , "caret"
   , "forecast"
   , "funModeling"
-  , "xts"
-  , "fpp"
+  # , "xts"
+  # , "fpp"
   , "lubridate"
   , "tidyverse"
-  , "urca"
-  , "prophet"
+  # , "urca"
+  # , "prophet"
   , "fable"
   , "feasts"
   , "RemixAutoML"
@@ -30,7 +30,7 @@ class(df)
 
 # Get month end of file - last day of previous month
 # Format Date ####
-df$Date <- lubridate::ymd(df$Date)
+df$Date <- ymd(df$Date)
 df <- df %>%
  mutate(month_start = floor_date(Date, unit = "month") - period(1, units = "day"))
 
@@ -78,7 +78,7 @@ head(df.tibble, 5)
 profiling_num(df.tibble$Daily_Log_Return)
 
 # Time Parameter ----
-time_param <- "weekly"
+time_param <- "monthly"
 
 # Make a log returns of close object
 df.ts <- df.tibble %>%
@@ -284,13 +284,17 @@ ifelse(
     as_tsibble(index = date_column)
 )
 
-df_tsbl %>% 
-  STL(observed_cleaned ~ season(window = Inf)) %>% 
+dcmp_ob <- df_tsbl %>% 
+  model(STL(observed_cleaned ~ season(window = Inf)))
+
+components(dcmp_ob) %>%
   autoplot() +
   theme_tq()
 
-df_tsbl %>%
-  STL(observed ~ season(window = Inf)) %>%
+dcmp_obc <- df_tsbl %>%
+  model(STL(observed ~ season(window = Inf)))
+
+components(dcmp_obc) %>%
   autoplot() +
   theme_tq()
 

@@ -78,7 +78,7 @@ head(df.tibble, 5)
 profiling_num(df.tibble$Daily_Log_Return)
 
 # Time Parameter ----
-time_param <- "weekly"
+time_param <- "monthly"
 
 # Make a log returns of close object
 df.ts <- df.tibble %>%
@@ -181,6 +181,32 @@ ggseasonplot(
       , "Log Returns"
       , sep = " "
     )
+  ) +
+  theme_tq() +
+  theme(
+    axis.text.x = element_blank()
+    , axis.ticks.x = element_blank()
+  ) 
+
+ggsubseriesplot(
+  tk_ts(
+    return_col
+    , frequency = case_when(
+      time_param == "monthly" ~ 12
+      , time_param == "weekly" ~ 52
+    )
+    , start = c(min.year, min.month)
+    , end = c(max.year, max.month)
+  )
+)+
+  labs(
+    title = str_c(
+      "Seasonal plot:"
+      , str_to_title(time_param)
+      , "Log Returns"
+      , sep = " "
+    )
+    , y = ""
   ) +
   theme_tq() +
   theme(
@@ -322,18 +348,18 @@ models_observed_cleaned <- df_tsbl %>%
 models_ob_acc <- accuracy(models_observed) %>%
   arrange(MAE) %>%
   mutate(model = .model %>% as_factor()) %>%
-  mutate(model_numeric = .model %>% as_factor() %>% as.numeric())
+  mutate(model_numeric = .model %>% as_factor() %>% as.numeric()) %>%
+  mutate(key = "observed")
 
 models_obc_acc <- accuracy(models_observed_cleaned) %>%
   arrange(MAPE) %>%
   mutate(model = .model %>% as_factor()) %>%
-  mutate(model_numeric = .model %>% as_factor() %>% as.numeric())
+  mutate(model_numeric = .model %>% as_factor() %>% as.numeric()) %>%
+  mutate(key = "observed_cleaned")
 
 model_acc_tbl <- models_ob_acc %>% 
-  mutate(key = "observed") %>% 
-  union(
-    models_obc_acc %>% mutate(key = "observed_cleaned")
-    , by = c(".model" = ".model")
+  union_all(
+    models_obc_acc, by = c(".model" = ".model")
     ) %>% 
   arrange(model_numeric) %>%
   select(
@@ -394,12 +420,14 @@ model_obc_desc <- model_desc_obc$model_desc
 a <- models_ob_tidy %>%
   inner_join(models_ob_acc, by = c("Model" = ".model")) %>%
   inner_join(model_desc_ob, by = c("Model" = "model")) %>%
-  select(Model, Date_Column, model, model_desc, Residuals, key) %>%
+  select(Model, Date_Column, model, model_desc, Residuals, key.x) %>%
+  set_names("Model","Date_Column","model","model_desc","Residuals","key") %>%
   mutate(data_type = "observed")
 b <- models_obc_tidy %>%
   inner_join(models_obc_acc, by = c("Model" = ".model")) %>%
   inner_join(model_desc_obc, by = c("Model" = "model")) %>%
-  select(Model, Date_Column, model, model_desc, Residuals, key) %>%
+  select(Model, Date_Column, model, model_desc, Residuals, key.x) %>%
+  set_names("Model","Date_Column","model","model_desc","Residuals","key") %>%
   mutate(data_type = "observed_cleaned")
 c <- union_all(a, b)
 
@@ -557,20 +585,18 @@ tidy_model_tbl %>%
       , "Winning Model Observed Data -"
       , winning_ob_model_lbl$model_desc
       , "- Model Acc:"
-      , model_acc_tbl %>% 
-        filter(key == "observed") %>%
+      , models_ob_acc %>%
+        filter(model_numeric == 1) %>%
         select(MAPE) %>%
-        mutate(MAPE = round(MAPE, 4)) %>%
-        top_n(-1) 
+        mutate(MAPE = round(MAPE, 4))
       , "\n"
       , "Winning Model Observed Cleaned Data -"
       , winning_obc_model_lbl$model_desc
       , "- Model Acc:"
-      , model_acc_tbl %>% 
-        filter(key == "observed_cleaned") %>%
+      , models_obc_acc %>%
+        filter(model_numeric == 1) %>%
         select(MAPE) %>%
-        mutate(MAPE = round(MAPE, 4)) %>%
-        top_n(-1)
+        mutate(MAPE = round(MAPE, 4))
       , sep = " "
     )
     , caption = str_c(

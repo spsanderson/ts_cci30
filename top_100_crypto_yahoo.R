@@ -19,6 +19,7 @@ install.load::install_load(
 
 # Base URL ####
 base_crypto_url = "https://finance.yahoo.com/cryptocurrencies?count=100&offset=0"
+base_crypto_url = "https://coinmarketcap.com/"
 
 # Top 100 ####
 crypto <- base_crypto_url %>%
@@ -28,7 +29,7 @@ crypto <- base_crypto_url %>%
   as_tibble()
 
 # Get list of symbols
-crypto_symbol <- as.list(crypto$Symbol)
+crypto_symbol <- as.list(crypto$Name)
 
 # Asset Loop ####
 start = as.Date('2010-01-01')

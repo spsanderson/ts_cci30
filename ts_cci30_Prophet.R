@@ -232,7 +232,7 @@ m2_resid_plt <- m2_residuals %>%
     y = str_c(str_to_title(time_param), "Log Returns", sep = " "),
     x = "",
     title = "Prophet Model M2 MCMC Sampling",
-    subtitle = str_c("Red lines are Change Points - MCMC Samples: ", m_mcmc_samples)
+    subtitle = str_c("Model Residuals - MCMC Samples: ", m_mcmc_samples)
   )
 
 m2_resid_hist <- m2_residuals %>%
@@ -247,7 +247,7 @@ m2_resid_hist <- m2_residuals %>%
     y = str_c(str_to_title(time_param), "Log Returns", sep = " "),
     x = "",
     title = "Prophet Model M2 MCMC Sampling",
-    subtitle = str_c("MCMC Samples: ", m_mcmc_samples)
+    subtitle = str_c("Model Residuals - MCMC Samples: ", m_mcmc_samples)
   )
 
 dyplot.prophet(m2, forecast2) # interactive plot

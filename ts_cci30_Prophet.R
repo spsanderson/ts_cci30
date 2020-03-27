@@ -6,7 +6,6 @@ pacman::p_load(
   "Matrix",
   "lubridate",
   "RcppRoll",
-  "magrittr",
   "tidyquant",
   "tsibble"
 )
@@ -88,7 +87,7 @@ df_prophet <- data.frame(ds, y)
 m1 <- prophet(
   df_prophet, 
   growth = "linear", 
-  mcmc.samples = 1500, 
+  mcmc.samples = 50000, 
   yearly.seasonality = "auto",
   weekly.seasonality = "auto",
   daily.seasonality = "auto",
@@ -142,6 +141,28 @@ plot(m1, forecast1) +
 # note approximately 9 per year
 tail(forecast1[c('ds', 'yhat', 'yhat_lower', 'yhat_upper')]) # for validation, delete later. Note vertical lines for inflection points
 prophet_plot_components(m1, forecast1) # component analysis
+
+m1_yhat <- forecast1 %>%
+  as_tibble() %>%
+  select(ds, yhat) %>%
+  mutate(ds = as_date(ds))
+
+m1_residuals <- df_prophet %>%
+  as_tibble() %>%
+  inner_join(m1_yhat, by = c("ds"="ds")) %>%
+  mutate(.resid = yhat - y)
+
+m1_residuals %>%
+  ggplot(
+    mapping = aes(
+      x = ds,
+      y = .resid
+    )
+  ) +
+  geom_point() +
+  geom_line() +
+  geom_smooth() +
+  theme_tq()
 
 dyplot.prophet(m1, forecast1) # interactive plot
 

@@ -281,7 +281,15 @@ df_y_yhat %>%
     color = "green",
     size = 1
   ) +
-  theme_tq()
+  theme_tq() +
+  labs(
+    title = str_c("Density of ", time_param," Log returns"),
+    subtitle = str_glue("Black line actual returns.
+                        Red line M1 estimates.
+                        Green line M2 estimates"),
+    x = "",
+    caption = str_c("Returns from ", min.date, " through ", max.date)
+  )
 
 m1_resid_plt / m2_resid_plt
 m1_resid_hist / m2_resid_hist

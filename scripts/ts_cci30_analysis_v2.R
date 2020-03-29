@@ -21,11 +21,11 @@ install.load::install_load(
   , "RemixAutoML"
 )
 
-# Daily OHLCV ####
+# Data ----
 url <- "https://cci30.com/ajax/getIndexHistory.php"
-destfile <- "cci30_OHLCV.csv"
+destfile <- "data/cci30_OHLCV.csv"
 download.file(url, destfile = destfile)
-df <- read.csv("cci30_OHLCV.csv")
+df <- read.csv("data/cci30_OHLCV.csv")
 class(df)
 
 # Get month end of file - last day of previous month

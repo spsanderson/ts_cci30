@@ -17,12 +17,12 @@ install.load::install_load(
   , "prophet"
 )
 
-# Daily OHLCV ####
+# Data ----
 url <- "https://cci30.com/ajax/getIndexHistory.php"
-destfile <- "cci30_OHLCV.csv"
+destfile <- "data/cci30_OHLCV.csv"
 download.file(url, destfile = destfile)
-df <- read.csv("cci30_OHLCV.csv")
-rm(list = c('url','destfile'))
+df <- read.csv("data/cci30_OHLCV.csv")
+class(df)
 
 # Format Date ####
 df$Date <- lubridate::ymd(df$Date)

@@ -14,9 +14,9 @@ pacman::p_load(
 
 # Data ----
 url <- "https://cci30.com/ajax/getIndexHistory.php"
-destfile <- "cci30_OHLCV.csv"
+destfile <- "data/cci30_OHLCV.csv"
 download.file(url, destfile = destfile)
-df <- read.csv("cci30_OHLCV.csv")
+df <- read.csv("data/cci30_OHLCV.csv")
 class(df)
 
 # Adjust date

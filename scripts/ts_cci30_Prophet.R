@@ -35,7 +35,7 @@ m_periods <- case_when(
   time_param == "monthly" ~ 12
 )
 
-# Filter Data
+# Filter Data ----
 df <- df %>%
   mutate(
     time_start = case_when(
@@ -122,14 +122,27 @@ m2 <- prophet(
   interval.width = 0.95
 )
 
+m3 <- prophet(
+  df_prophet,
+  growth = "linear",
+  mcmc.samples = m_mcmc_samples * 5, # 5000 samples
+  yearly.seasonality = "auto",
+  weekly.seasonality = "auto",
+  daily.seasonality = "auto",
+  uncertainty.samples = m_uncertainty_samples,
+  interval.width = 0.95
+)
+
 # Prediction Horizon ----
 # sets the prediction frequency to m_freq and covers the next n periods defined by m_periods
 future1 <- make_future_dataframe(m1, periods = m_periods, freq = m_freq) 
 future2 <- make_future_dataframe(m2, periods = m_periods, freq = m_freq)
+future3 <- make_future_dataframe(m2, periods = m_periods, freq = m_freq)
 # makes sure we have enough predictions
 range(future1$ds)
 
 # Forecasts ----
+# M1 ----
 # make future predictions for a determined amount of weeks
 forecast1 <- predict(m1, future1) # use future time frame to predict m
 plot(m1, forecast1) + 
@@ -191,6 +204,7 @@ m1_resid_hist <- m1_residuals %>%
 
 dyplot.prophet(m1, forecast1) # interactive plot
 
+# M2 ----
 # make future predictions for a determined amount of weeks
 forecast2 <- predict(m2, future2) # use future time frame to predict m
 plot(m2, forecast2) + 
@@ -253,11 +267,80 @@ m2_resid_hist <- m2_residuals %>%
 
 dyplot.prophet(m2, forecast2) # interactive plot
 
-df_y_yhat <- m1_residuals %>%
-  inner_join(m2_residuals, by = c("ds"="ds")) %>%
+# M3 ----
+# make future predictions for a determined amount of weeks
+forecast3 <- predict(m3, future3) # use future time frame to predict m
+plot(m3, forecast3) + 
+  # initial plot with change points identified
+  add_changepoints_to_plot(m2) +
+  theme_tq() +
+  labs(
+    y = str_c(str_to_title(time_param), "Log Returns", sep = " "),
+    x = "",
+    title = "Prophet Model M2 MCMC Sampling",
+    subtitle = str_c("Red lines are Change Points - MCMC Samples: ", m_mcmc_samples)
+  )
+
+# note approximately 9 per year
+tail(forecast3[c('ds', 'yhat', 'yhat_lower', 'yhat_upper')]) # for validation, delete later. Note vertical lines for inflection points
+prophet_plot_components(m3, forecast3) # component analysis
+
+m3_yhat <- forecast3 %>%
   as_tibble() %>%
-  set_names("ds","y_m1","yhat_m1","resid_m1","y_m2","yhat_m2","resid_m2") %>%
-  select(-y_m2)
+  select(ds, yhat) %>%
+  mutate(ds = as_date(ds))
+
+m3_residuals <- df_prophet %>%
+  as_tibble() %>%
+  inner_join(m3_yhat, by = c("ds"="ds")) %>%
+  mutate(.resid = yhat - y)
+
+m3_resid_plt <- m3_residuals %>%
+  ggplot(
+    mapping = aes(
+      x = ds,
+      y = .resid
+    )
+  ) +
+  geom_point() +
+  geom_line() +
+  geom_smooth() +
+  theme_tq()+
+  labs(
+    y = str_c(str_to_title(time_param), "Log Returns", sep = " "),
+    x = "",
+    title = "Prophet Model M3 MCMC Sampling",
+    subtitle = str_c("Model Residuals - MCMC Samples: ", m_mcmc_samples * 5)
+  )
+
+m3_resid_hist <- m2_residuals %>%
+  ggplot(
+    mapping = aes(
+      x = .resid
+    )
+  ) +
+  geom_histogram(bins = 30L, color = "black") +
+  theme_tq() +
+  labs(
+    y = str_c(str_to_title(time_param), "Log Returns", sep = " "),
+    x = "",
+    title = "Prophet Model M2 MCMC Sampling",
+    subtitle = str_c("Model Residuals - MCMC Samples: ", m_mcmc_samples * 2)
+  )
+
+dyplot.prophet(m2, forecast2) # interactive plot
+
+# Yhat ----
+df_y_yhat <- m1_residuals %>%
+  inner_join(m2_residuals, by = c("ds" = "ds")) %>%
+  inner_join(m3_residuals, by = c("ds" = "ds")) %>%
+  as_tibble() %>%
+  set_names(
+    "ds","y_m1","yhat_m1","resid_m1",
+    "y_m2","yhat_m2","resid_m2",
+    "y_m3","yhat_m3","resid_m3"
+  ) %>%
+  select(-y_m2, -y_m3)
 
 # Prophet CV ----
 # now we measure forecast error with cross-validation
@@ -328,8 +411,6 @@ ats_resid_hist <- ats_residuals %>%
     subtitle = "Model Residuals"
   )
 
-
-
 # Viz ----
 density_plt <- df_y_yhat %>%
   ggplot(
@@ -337,7 +418,9 @@ density_plt <- df_y_yhat %>%
       x = y_m1
     )
   ) +
+  # Actual
   geom_density(color = "black", size = 1) +
+  # M1
   geom_density(
     data = df_y_yhat,
     mapping = aes(
@@ -346,6 +429,7 @@ density_plt <- df_y_yhat %>%
     color = "red",
     size = 1
   ) +
+  # M2
   geom_density(
     data = df_y_yhat,
     mapping = aes(
@@ -354,8 +438,19 @@ density_plt <- df_y_yhat %>%
     color = "green",
     size = 1
   ) +
+  # M3
   geom_density(
-    ddata = df_y_yhat,
+    data = df_y_yhat,
+    mapping = aes(
+      x = yhat_m3
+    ),
+    color = "orange",
+    linetype = "dashed",
+    size = 1
+  ) +
+  # AutoTS
+  geom_density(
+    data = df_y_yhat,
     mapping = aes(
       x = ats_yhat
     ),
@@ -367,11 +462,13 @@ density_plt <- df_y_yhat %>%
     title = str_c("Density of ", time_param," Log returns"),
     subtitle = str_glue("Black line actual returns.
                         Red line fbProphet Model 1 estimates.
-                        Green line fbProphet Model 2 estimates
-                        Purple line AutoTS estimates"),
+                        Green line fbProphet Model 2 estimates.
+                        Orange Dashed line fbProphet Model 3 estimates.
+                        Purple line AutoTS estimates."),
     x = "",
     caption = str_c("Returns from ", min.date, " through ", max.date)
   )
 
-m1_resid_plt / m2_resid_plt / ats_resid_plt
-m1_resid_hist / m2_resid_hist / ats_resid_hist
+density_plt
+m1_resid_plt / m2_resid_plt / m3_resid_plt / ats_resid_plt
+m1_resid_hist / m2_resid_hist / m3_resid_hist / ats_resid_hist

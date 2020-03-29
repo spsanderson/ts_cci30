@@ -259,44 +259,7 @@ df_y_yhat <- m1_residuals %>%
   set_names("ds","y_m1","yhat_m1","resid_m1","y_m2","yhat_m2","resid_m2") %>%
   select(-y_m2)
 
-
-df_y_yhat %>%
-  ggplot(
-    mapping = aes(
-      x = y_m1
-    )
-  ) +
-  geom_density(color = "black", size = 1) +
-  geom_density(
-    data = df_y_yhat,
-    mapping = aes(
-      x = yhat_m1
-    ),
-    color = "red",
-    size = 1
-  ) +
-  geom_density(
-    data = df_y_yhat,
-    mapping = aes(
-      x = yhat_m2
-    ),
-    color = "green",
-    size = 1
-  ) +
-  theme_tq() +
-  labs(
-    title = str_c("Density of ", time_param," Log returns"),
-    subtitle = str_glue("Black line actual returns.
-                        Red line M1 estimates.
-                        Green line M2 estimates"),
-    x = "",
-    caption = str_c("Returns from ", min.date, " through ", max.date)
-  )
-
-m1_resid_plt / m2_resid_plt
-m1_resid_hist / m2_resid_hist
-
-# CV ----
+# Prophet CV ----
 # now we measure forecast error with cross-validation
 # take 53 weeks, predict 26 iteratively for the entire data set to see how accurate we are (will cycle through multiple times)
 df.cv <- cross_validation(m2, initial = 53, horizon = 26, units = "weeks") # this will do 6 iterations of 4 markov chains
@@ -328,7 +291,47 @@ ats_fitted <- ats_ob[["TimeSeriesModel"]][["residuals"]] %>%
 df_y_yhat <- df_y_yhat %>% 
   bind_cols(ats_fitted)
 
-df_y_yhat %>%
+ats_residuals <- df_prophet %>%
+  bind_cols(ats_fitted) %>%
+  mutate(ats_resid = ats_yhat - y)
+
+ats_resid_plt <- ats_residuals %>%
+  ggplot(
+    mapping = aes(
+      x = ds,
+      y = ats_resid
+    )
+  ) +
+  geom_point() +
+  geom_line() +
+  geom_smooth() +
+  theme_tq() +
+  labs(
+    y = str_c(str_to_title(time_param), "Log Returns", sep = " "),
+    x = "",
+    title = "RemixAutoML AutoTS()",
+    subtitle = "Model Residuals"
+  )
+
+ats_resid_hist <- ats_residuals %>%
+  ggplot(
+    mapping = aes(
+      x = ats_resid
+    )
+  ) +
+  geom_histogram(bins = 30L, color = "black") +
+  theme_tq() +
+  labs(
+    y = str_c(str_to_title(time_param), "Log Returns", sep = " "),
+    x = "",
+    title = "RemixAutoML AutoTS()",
+    subtitle = "Model Residuals"
+  )
+
+
+
+# Viz ----
+density_plt <- df_y_yhat %>%
   ggplot(
     mapping = aes(
       x = y_m1
@@ -368,43 +371,6 @@ df_y_yhat %>%
                         Purple line AutoTS estimates"),
     x = "",
     caption = str_c("Returns from ", min.date, " through ", max.date)
-  )
-
-ats_residuals <- df_prophet %>%
-  bind_cols(ats_fitted) %>%
-  mutate(ats_resid = ats_yhat - y)
-
-ats_resid_plt <- ats_residuals %>%
-  ggplot(
-    mapping = aes(
-      x = ds,
-      y = ats_resid
-    )
-  ) +
-  geom_point() +
-  geom_line() +
-  geom_smooth() +
-  theme_tq() +
-  labs(
-    y = str_c(str_to_title(time_param), "Log Returns", sep = " "),
-    x = "",
-    title = "RemixAutoML AutoTS()",
-    subtitle = "Model Residuals"
-  )
-
-ats_resid_hist <- ats_residuals %>%
-  ggplot(
-    mapping = aes(
-      x = ats_resid
-    )
-  ) +
-  geom_histogram(bins = 30L, color = "black") +
-  theme_tq() +
-  labs(
-    y = str_c(str_to_title(time_param), "Log Returns", sep = " "),
-    x = "",
-    title = "RemixAutoML AutoTS()",
-    subtitle = "Model Residuals"
   )
 
 m1_resid_plt / m2_resid_plt / ats_resid_plt

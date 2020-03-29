@@ -8,7 +8,8 @@ pacman::p_load(
   "RcppRoll",
   "tidyquant",
   "tsibble",
-  "patchwork"
+  "patchwork",
+  "RemixAutoML"
 )
 
 # Data ----
@@ -258,6 +259,7 @@ df_y_yhat <- m1_residuals %>%
   set_names("ds","y_m1","yhat_m1","resid_m1","y_m2","yhat_m2","resid_m2") %>%
   select(-y_m2)
 
+
 df_y_yhat %>%
   ggplot(
     mapping = aes(
@@ -304,3 +306,106 @@ tail(df.p)
 plot_cross_validation_metric(df.cv, metric = "rmse")
 plot_cross_validation_metric(df.cv, metric = "mape")
 dyplot.prophet(m2, df.cv)
+
+# AutoTS() ----
+ats_ob <- AutoTS(
+  data = df_prophet
+  , TargetName = "y"
+  , DateName = "ds"
+  , FCPeriods = ifelse(time_param == "weekly", 52, 12)
+  , TimeUnit = ifelse(time_param == "weekly","week","month")
+  , HoldOutPeriods = round(nrow(df_prophet) * 0.7, 0)
+)
+print(ats_ob)
+
+ats_fitted <- ats_ob[["TimeSeriesModel"]][["residuals"]] %>% 
+  enframe() %>% 
+  set_names("name","ats_yhat") %>%
+  select(-name) %>%
+  as_tibble() %>%
+  mutate(ats_yhat = as.numeric(ats_yhat))
+
+df_y_yhat <- df_y_yhat %>% 
+  bind_cols(ats_fitted)
+
+df_y_yhat %>%
+  ggplot(
+    mapping = aes(
+      x = y_m1
+    )
+  ) +
+  geom_density(color = "black", size = 1) +
+  geom_density(
+    data = df_y_yhat,
+    mapping = aes(
+      x = yhat_m1
+    ),
+    color = "red",
+    size = 1
+  ) +
+  geom_density(
+    data = df_y_yhat,
+    mapping = aes(
+      x = yhat_m2
+    ),
+    color = "green",
+    size = 1
+  ) +
+  geom_density(
+    ddata = df_y_yhat,
+    mapping = aes(
+      x = ats_yhat
+    ),
+    color = "purple",
+    size = 1
+  ) +
+  theme_tq() +
+  labs(
+    title = str_c("Density of ", time_param," Log returns"),
+    subtitle = str_glue("Black line actual returns.
+                        Red line fbProphet Model 1 estimates.
+                        Green line fbProphet Model 2 estimates
+                        Purple line AutoTS estimates"),
+    x = "",
+    caption = str_c("Returns from ", min.date, " through ", max.date)
+  )
+
+ats_residuals <- df_prophet %>%
+  bind_cols(ats_fitted) %>%
+  mutate(ats_resid = ats_yhat - y)
+
+ats_resid_plt <- ats_residuals %>%
+  ggplot(
+    mapping = aes(
+      x = ds,
+      y = ats_resid
+    )
+  ) +
+  geom_point() +
+  geom_line() +
+  geom_smooth() +
+  theme_tq() +
+  labs(
+    y = str_c(str_to_title(time_param), "Log Returns", sep = " "),
+    x = "",
+    title = "RemixAutoML AutoTS()",
+    subtitle = "Model Residuals"
+  )
+
+ats_resid_hist <- ats_residuals %>%
+  ggplot(
+    mapping = aes(
+      x = ats_resid
+    )
+  ) +
+  geom_histogram(bins = 30L, color = "black") +
+  theme_tq() +
+  labs(
+    y = str_c(str_to_title(time_param), "Log Returns", sep = " "),
+    x = "",
+    title = "RemixAutoML AutoTS()",
+    subtitle = "Model Residuals"
+  )
+
+m1_resid_plt / m2_resid_plt / ats_resid_plt
+m1_resid_hist / m2_resid_hist / ats_resid_hist

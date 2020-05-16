@@ -1,11 +1,7 @@
 # Lib Load ----
 if(!require(pacman)) install.packages("pacman")
 pacman::p_load(
-  "prophet",
-  "tidyverse",
-  "Matrix",
   "lubridate",
-  "RcppRoll",
   "tidyquant",
   "tsibble",
   "patchwork",
@@ -14,7 +10,9 @@ pacman::p_load(
   "gamlss",
   "gamlss.dist",
   "gamlss.add",
-  "boot"
+  "tidyverse",
+  "timetk",
+  "anomalize"
 )
 
 # Data ----
@@ -95,6 +93,7 @@ df.ts <- df.tibble %>%
 head(df.ts, 5)
 
 return_col <- df.ts[,ncol(df.ts)] %>% pull()
+ret_col_tbl <- return_col %>% as_tibble()
 
 # Return Dist ----
 descdist(data = return_col)
@@ -131,3 +130,38 @@ for (i in 1:n){
 hist(mean)
 hist(sd)
 hist(var)
+
+# sample tibble
+n = 100
+samp_tbl <- tibble(
+  "sample_id" = 1:n
+  , "data_sample" = replicate(
+    n
+    , sample(
+      df.ts$Weekly_Log_Returns
+      , 100
+      , replace =TRUE
+    ) %>% as_tibble()
+    , simplify = FALSE
+  )
+)
+
+unnested_tbl <- samp_tbl %>%
+  unnest(cols = c(data_sample))
+
+unnested_tbl %>%
+  ggplot(
+    mapping = aes(
+      x = value
+      , group = sample_id
+    )
+  ) +
+  geom_density() +
+  theme_tq() +
+  labs(
+    x = "Weekly Log Returns of CCI30"
+    , title = "Sampled Weekly Log Returns"
+    , subtitle = str_glue("Samples Used: {n}")
+  )
+
+  

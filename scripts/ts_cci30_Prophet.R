@@ -9,7 +9,8 @@ pacman::p_load(
   "tidyquant",
   "tsibble",
   "patchwork",
-  "RemixAutoML"
+  "RemixAutoML",
+  "fitdistrplus"
 )
 
 # Data ----
@@ -90,6 +91,9 @@ df.ts <- df.tibble %>%
 head(df.ts, 5)
 
 return_col <- df.ts[,ncol(df.ts)] %>% pull()
+
+# Return Dist ----
+descdist(data = return_col)
 
 # Prohpet ----
 # Get into prophet format ds/y

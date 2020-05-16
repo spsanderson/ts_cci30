@@ -164,4 +164,15 @@ unnested_tbl %>%
     , subtitle = str_glue("Samples Used: {n}")
   )
 
+unnested_tbl %>%
+  group_by(sample_id) %>%
+  summarise(mean_ret = mean(value)) %>%
+  ungroup() %>%
+  ggplot(
+    mapping = aes(
+      x = mean_ret
+    )
+  ) +
+  geom_density(aes(color = "red")) +
+  theme_tq() 
   

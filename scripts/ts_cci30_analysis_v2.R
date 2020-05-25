@@ -78,7 +78,7 @@ head(df.tibble, 5)
 profiling_num(df.tibble$Daily_Log_Return)
 
 # Time Parameter ----
-time_param <- "monthly"
+time_param <- "weekly"
 
 # Make a log returns of close object
 df.ts <- df.tibble %>%

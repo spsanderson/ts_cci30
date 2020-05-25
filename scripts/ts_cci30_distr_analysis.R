@@ -5,7 +5,6 @@ pacman::p_load(
   "tidyquant",
   "tsibble",
   "patchwork",
-  "RemixAutoML",
   "fitdistrplus",
   "gamlss",
   "gamlss.dist",
@@ -67,20 +66,6 @@ max.month <- month(max.date)
 df.tibble <- as_tibble(df.tibble)
 
 # Add varaibles ----
-df.tibble <- df.tibble %>% 
-  tq_mutate(
-    select = Close
-    , mutate_fun = dailyReturn
-    , col_rename = "Daily_Return"
-  ) %>%
-  tq_mutate(
-    select = Close
-    , mutate_fun = periodReturn
-    , period = "daily"
-    , type = "log"
-    , col_rename = "Daily_Log_Return"
-  )
-
 # Make a log returns of close object
 df.ts <- df.tibble %>%
   tq_transmute(
@@ -93,14 +78,27 @@ df.ts <- df.tibble %>%
 head(df.ts, 5)
 
 return_col <- df.ts[,ncol(df.ts)] %>% pull()
-ret_col_tbl <- return_col %>% as_tibble()
+return_col_shifted <- return_col %>% 
+  as_tibble() %>%
+  mutate(min_ret = min(value)) %>%
+  mutate(val_shift = abs(min_ret) + .0000001) %>%
+  mutate(shifted_val = value + val_shift) %>%
+  pull(shifted_val)
 
 # Return Dist ----
-descdist(data = return_col)
+descdist(data = return_col_shifted, boot = 5000)
+fit_n <- fitdist(return_col_shifted, "norm")
+fit_l <- fitdist(return_col_shifted, "lnorm")
+fit_g <- fitdist(return_col_shifted, "gamma")
+fit_w <- fitdist(return_col_shifted, "weibull")
 
-fit_norm <- fitdist(return_col, "norm")
-plot(fit_norm)
-fit_norm$aic
+par(mfrow=c(2,2))
+plot.legend <- c("Normal", "Log-Normal","Gamma","Weibull")
+denscomp(list(fit_n, fit_l, fit_g, fit_w), legendtext = plot.legend)
+cdfcomp (list(fit_n, fit_l, fit_g, fit_w), legendtext = plot.legend)
+qqcomp  (list(fit_n, fit_l, fit_g, fit_w), legendtext = plot.legend)
+ppcomp  (list(fit_n, fit_l, fit_g, fit_w), legendtext = plot.legend)
+dev.off()
 
 gamlss_fit <- fitDist(
   return_col
@@ -113,24 +111,6 @@ summary(gamlss_fit)
 plot(gamlss_fit)
 
 # Boot Strap ----
-n = 5000
-mean = rep(NA, n)
-sd   = rep(NA, n)
-var  = rep(NA, n)
-for (i in 1:n){
-  samp <- sample(
-    return_col
-    , 500
-    , replace = TRUE
-  )
-  mean[i] <- mean(samp)
-  sd[i]   <- sd(samp)
-  var[i]  <- var(samp)
-}
-hist(mean)
-hist(sd)
-hist(var)
-
 # sample tibble
 n = 100
 samp_tbl <- tibble(
@@ -140,7 +120,7 @@ samp_tbl <- tibble(
     , sample(
       df.ts$Weekly_Log_Returns
       , 100
-      , replace =TRUE
+      , replace = TRUE
     ) %>% as_tibble()
     , simplify = FALSE
   )
@@ -173,6 +153,10 @@ unnested_tbl %>%
       x = mean_ret
     )
   ) +
-  geom_density(aes(color = "red")) +
-  theme_tq() 
+  geom_density(color = "red", size = 1) +
+  theme_tq() +
+  labs(
+    x = "Mean Sample Density Estimate"
+    , color = ""
+  )
   

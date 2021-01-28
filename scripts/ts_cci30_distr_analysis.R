@@ -11,7 +11,8 @@ pacman::p_load(
   "gamlss.add",
   "tidyverse",
   "timetk",
-  "anomalize"
+  "anomalize",
+  "ggridges"
 )
 
 # Data ----
@@ -88,17 +89,24 @@ return_col_shifted <- return_col %>%
 # Return Dist ----
 descdist(data = return_col_shifted, boot = 5000)
 fit_n <- fitdist(return_col_shifted, "norm")
-fit_l <- fitdist(return_col_shifted, "lnorm")
+fit_l <- fitdist(return_col_shifted, "logis")
 fit_g <- fitdist(return_col_shifted, "gamma")
 fit_w <- fitdist(return_col_shifted, "weibull")
+fit_c <- dchisq(return_col_shifted, df = 4)
+
+summary(fit_n)
+summary(fit_l)
+summary(fit_g)
+summary(fit_w)
+summary(fit_c)
 
 par(mfrow=c(2,2))
-plot.legend <- c("Normal", "Log-Normal","Gamma","Weibull")
+plot.legend <- c("Normal", "Logistic","Gamma","Weibull")
 denscomp(list(fit_n, fit_l, fit_g, fit_w), legendtext = plot.legend)
 cdfcomp (list(fit_n, fit_l, fit_g, fit_w), legendtext = plot.legend)
 qqcomp  (list(fit_n, fit_l, fit_g, fit_w), legendtext = plot.legend)
 ppcomp  (list(fit_n, fit_l, fit_g, fit_w), legendtext = plot.legend)
-dev.off()
+par(mfrow=c(1,1))
 
 gamlss_fit <- fitDist(
   return_col
@@ -159,4 +167,3 @@ unnested_tbl %>%
     x = "Mean Sample Density Estimate"
     , color = ""
   )
-  

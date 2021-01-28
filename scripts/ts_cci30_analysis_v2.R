@@ -2,22 +2,22 @@
 # Time Series analysis of CCI30 crypto index
 install.load::install_load(
   "tidyquant"
-  ,"timetk"
-  , "tibbletime"
+  #,"timetk"
+  #, "tibbletime"
   , "tsibble"
-  , "sweep"
-  , "anomalize"
-  , "caret"
-  , "forecast"
-  , "funModeling"
+  #, "sweep"
+  #, "anomalize"
+  #, "caret"
+  #, "forecast"
+  #, "funModeling"
   # , "xts"
   # , "fpp"
-  , "lubridate"
+  #, "lubridate"
   , "tidyverse"
   # , "urca"
   # , "prophet"
-  , "fable"
-  , "feasts"
+  #, "fable"
+  #, "feasts"
   , "RemixAutoML"
 )
 
@@ -26,7 +26,6 @@ url <- "https://cci30.com/ajax/getIndexHistory.php"
 destfile <- "data/cci30_OHLCV.csv"
 download.file(url, destfile = destfile)
 df <- read.csv("data/cci30_OHLCV.csv")
-class(df)
 
 # Get month end of file - last day of previous month
 # Format Date ####
@@ -34,33 +33,29 @@ df$Date <- ymd(df$Date)
 df <- df %>%
  mutate(month_start = floor_date(Date, unit = "month") - period(1, units = "day"))
 
-df.tibble <- as_tsibble(df, index = Date) %>%
+df_tbl <- as_tibble(df, index = Date) %>%
   filter(Date <= max(month_start)) %>%
   select(Date, Open, High, Low, Close, Volume)
 
-class(df.tibble)
-head(df.tibble, 1)
-tail(df.tibble, 1)
-
-min.date  <- min(df.tibble$Date)
-min.year  <- year(min.date)
-min.month <- month(min.date)
-max.date  <- max(df.tibble$Date)
-max.year  <- year(max.date)
-max.month <- month(max.date)
+min_date  <- min(df_tbl$Date)
+min_year  <- year(min_date)
+min_month <- month(min_date)
+max_date  <- max(df_tbl$Date)
+max_year  <- year(max_date)
+max_month <- month(max_date)
 
 # Coerce df to tibble ####
-df.tibble <- as_tibble(df.tibble)
+df_tbl <- as_tibble(df_tbl)
 featurePlot(
-  x = df.tibble[,c("Open","High","Low","Volume")]
-  , y = df.tibble$Close
+  x = df_tbl[,c("Open","High","Low","Volume")]
+  , y = df_tbl$Close
   , plot = "pairs"
   , auto.key = list(columns = 4)
   , na.action(na.omit)
 )
 
-# Add varaibles ####
-df.tibble <- df.tibble %>% 
+# Add vars ####
+df_tbl <- df_tbl %>% 
   tq_mutate(
     select = Close
     , mutate_fun = dailyReturn
@@ -74,14 +69,13 @@ df.tibble <- df.tibble %>%
     , col_rename = "Daily_Log_Return"
   )
 
-head(df.tibble, 5)
-profiling_num(df.tibble$Daily_Log_Return)
+head(df_tbl)
 
 # Time Parameter ----
 time_param <- "weekly"
 
 # Make a log returns of close object
-df.ts <- df.tibble %>%
+df.ts <- df_tbl %>%
   tq_transmute(
     select = Close
     , periodReturn

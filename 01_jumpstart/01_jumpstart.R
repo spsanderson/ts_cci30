@@ -16,6 +16,7 @@ pacman::p_load(
   "tidymodels",
   "modeltime",
   "tidyquant",
+  "modeltime.ensemble",
   
   # EDA
   "DataExplorer",
@@ -41,7 +42,7 @@ cci_index_tbl %>%
 
 
 # * Daily Log Returns ----
-time_param <- "daily"
+time_param <- "weekly"
 log_rets_daily_tbl <- cci_index_tbl %>%
   tq_transmute(
     select = close
@@ -69,7 +70,7 @@ log_rets_daily_tbl %>%
 splits <- log_rets_daily_tbl %>%
   time_series_split(
     .date_var = date_col
-    , assess = "12 week"
+    , assess = "12 weeks"
     , cumulative = TRUE
   )
 
@@ -80,85 +81,214 @@ splits %>%
     , .value  = value
   )
 
-# 3.0 PROPHET FORECASTING ----
+# Features ----------------------------------------------------------------
 
-# * Prophet Model using Modeltime/Parsnip ----
-model_prophet_fit <- prophet_reg() %>%
-  set_engine(engine = "prophet") %>%
+recipe_base <- recipe(value ~ ., data = training(splits)) %>%
+  step_timeseries_signature(date_col)
+
+recipe_final <- recipe_base %>%
+  step_rm(
+    contains("iso")
+    , contains("second")
+    , contains("minute")
+    , contains("hour")
+    , contains("am.pm")
+    , contains("xts")
+  ) %>%
+  step_normalize(contains("index.num"), date_col_year) %>%
+  step_dummy(contains("lbl"), one_hot = TRUE) %>%
+  step_fourier(date_col, period = 365/12, K = 2) %>%
+  step_holiday_signature(date_col) %>%
+  step_YeoJohnson(value)
+
+# MODELING ----
+# * AUTO ARIMA ----
+model_fit_arima_no_boost <- arima_reg() %>%
+  set_engine(engine = "auto_arima") %>%
   fit(value ~ date_col, data = training(splits))
 
-# * Modeltime Process ----
-model_tbl <- modeltime_table(
-  model_prophet_fit
-)
+# * Boosted Auto ARIMA ------------------------------------------------------
 
-# * Calibration ----
-calibration_tbl <- model_tbl %>%
-  modeltime_calibrate(new_data = testing(splits))
+model_spec_arima_boosted <- arima_boost(
+  min_n = 2
+  , learn_rate = 0.015
+) %>%
+  set_engine(engine = "auto_arima_xgboost")
 
-# * Visualize Forecast on Test Data ----
-calibration_tbl %>%
-  modeltime_forecast(actual_data = log_rets_daily_tbl) %>%
-  plot_modeltime_forecast()
-
-# * Get Accuracy Metrics ----
-calibration_tbl %>%
-  modeltime_accuracy()
-
-# 4.0 FORECASTING WITH FEATURE ENGINEERING ----
-
-# * Identifying Possible Features ----
-
-log_rets_daily_tbl %>%
-  plot_seasonal_diagnostics(
-    .date_var = date_col
-    , .value  = value
-  )
-
-# * Recipes Spec ----
-training(splits)
-
-recipe_spec <- recipe(date_col ~ ., data = training(splits)) %>%
-  
-  # TS Signature
-  step_timeseries_signature(date_col) %>%
-  
-  step_rm(ends_with(".iso")) %>%
-  step_rm(ends_with("xts")) %>%
-  step_rm(contains("hour"), contains("minute"), contains("second"), contains("am.pm")) %>%
-  
-  step_normalize(ends_with("index.num"), ends_with("_year")) %>%
-  step_dummy(all_nominal())
-
-recipe_spec %>%
-  prep() %>%
-  juice() %>%
-  glimpse()
-
-
-# * ML Specs ----
-
-model_spec <- linear_reg() %>%
-  set_engine("lm")
-
-workflow_fit_lm <- workflow() %>%
-  add_model(model_spec) %>%
-  add_recipe(recipe_spec) %>%
+wflw_fit_arima_boosted <- workflow() %>%
+  add_recipe(recipe = recipe_final) %>%
+  add_model(model_spec_arima_boosted) %>%
   fit(training(splits))
 
-# * Modeltime Process ----
-calibration_tbl <- modeltime_table(
-  model_prophet_fit
-  , workflow_fit_lm
-) %>%
-  modeltime_calibrate(testing(splits))
 
-calibration_tbl %>%
-  modeltime_accuracy()
+# * ETS ---------------------------------------------------------------------
+
+model_spec_ets <- exp_smoothing() %>%
+  set_engine(engine = "ets") 
+
+wflw_fit_ets <- workflow() %>%
+  add_recipe(recipe = recipe_final) %>%
+  add_model(model_spec_ets) %>%
+  fit(training(splits))
+
+# * Prophet -----------------------------------------------------------------
+
+model_spec_prophet <- prophet_reg() %>%
+  set_engine(engine = "prophet")
+
+wflw_fit_prophet <- workflow() %>%
+  add_recipe(recipe = recipe_final) %>%
+  add_model(model_spec_prophet) %>%
+  fit(training(splits))
+
+model_spec_prophet_boost <- prophet_boost(learn_rate = 0.1) %>% 
+  set_engine("prophet_xgboost") 
+
+wflw_fit_prophet_boost <- workflow() %>%
+  add_recipe(recipe = recipe_final) %>%
+  add_model(model_spec_prophet_boost) %>%
+  fit(training(splits))
+
+# * TSLM --------------------------------------------------------------------
+
+model_spec_lm <- linear_reg() %>%
+  set_engine("lm")
+
+wflw_fit_lm <- workflow() %>%
+  add_recipe(recipe = recipe_final) %>%
+  add_model(model_spec_lm) %>%
+  fit(training(splits))
+
+
+# * TBATS ------------------------------------------------------------
+
+model_fit_tbats <- seasonal_reg() %>%
+  set_engine("tbats")%>%
+  fit(value ~ date_col, data = training(splits))
+
+# * MARS --------------------------------------------------------------------
+
+model_spec_mars <- mars(mode = "regression") %>%
+  set_engine("earth")
+
+wflw_fit_mars <- workflow() %>%
+  add_recipe(recipe = recipe_final) %>%
+  add_model(model_spec_mars) %>%
+  fit(training(splits))
+
+# * NNETAR ------------------------------------------------------------------
+
+model_fit_nnetar <- nnetar_reg() %>%
+  set_engine("nnetar") %>%
+  fit(value ~ date_col, data = training(splits))
+
+# Model Table -------------------------------------------------------------
+
+models_tbl <- modeltime_table(
+  model_fit_arima_no_boost,
+  wflw_fit_arima_boosted,
+  wflw_fit_ets,
+  wflw_fit_prophet,
+  wflw_fit_prophet_boost,
+  wflw_fit_lm, 
+  model_fit_tbats,
+  wflw_fit_mars,
+  model_fit_nnetar
+)
+
+# * Model Ensemble Table ----------------------------------------------------
+resample_tscv <- training(splits) %>%
+  time_series_cv(
+    date_var      = date_col
+    , assess      = "30 days"
+    , initial     = "120 days"
+    , skip        = "30 days"
+    , slice_limit = 1
+  )
+
+submodel_predictions <- models_tbl %>%
+  modeltime_fit_resamples(
+    resamples = resample_tscv
+    , control = control_resamples(verbose = TRUE)
+  )
+
+ensemble_fit <- submodel_predictions %>%
+  ensemble_model_spec(
+    model_spec = linear_reg(
+      penalty  = tune()
+      , mixture = tune()
+    ) %>%
+      set_engine("glmnet")
+    , kfold    = 5
+    , grid     = 6
+    , control  = control_grid(verbose = TRUE)
+  )
+
+ensemble_mean_fit <- models_tbl %>%
+  ensemble_average(type = "mean")
+
+# Model Table -------------------------------------------------------------
+
+models_tbl <- modeltime_table(
+  model_fit_arima_no_boost,
+  wflw_fit_arima_boosted,
+  wflw_fit_ets,
+  wflw_fit_prophet,
+  wflw_fit_prophet_boost,
+  wflw_fit_lm, 
+  model_fit_tbats,
+  wflw_fit_mars,
+  model_fit_nnetar,
+  #ensemble_fit,
+  ensemble_mean_fit
+)
+
+models_tbl
+
+# Calibrate Model Testing -------------------------------------------------
+
+calibration_tbl <- models_tbl %>%
+  modeltime_calibrate(new_data = testing(splits))
+calibration_tbl
+
+# Testing Accuracy --------------------------------------------------------
 
 calibration_tbl %>%
   modeltime_forecast(
-    new_data = testing(splits)
-    , actual_data = evaluation_tbl
+    new_data = testing(splits),
+    actual_data = log_rets_daily_tbl
   ) %>%
-  plot_modeltime_forecast()
+  plot_modeltime_forecast(
+    .legend_max_width = 25,
+    .interactive = TRUE,
+    .conf_interval_show = FALSE
+  )
+
+calibration_tbl %>%
+  modeltime_accuracy() %>%
+  arrange(rmse) %>%
+  table_modeltime_accuracy(resizable = TRUE, bordered = TRUE)
+
+# Refit to all Data -------------------------------------------------------
+
+refit_tbl <- calibration_tbl %>%
+  modeltime_refit(data = log_rets_daily_tbl)
+  # modeltime_refit(
+  #   data        = data_tbl
+  #   , resamples = resample_tscv
+  #   , control   = control_resamples(verbose = TRUE)
+  # )
+
+top_two_models <- refit_tbl %>% 
+  modeltime_accuracy() %>% 
+  arrange(mae) %>% 
+  head(2)
+
+refit_tbl %>%
+  filter(.model_id %in% top_two_models$.model_id) %>%
+  modeltime_forecast(h = "12 weeks", actual_data = log_rets_daily_tbl) %>%
+  plot_modeltime_forecast(
+    .legend_max_width = 25
+    , .interactive = FALSE
+    , .title = "12 Week CCI30 Log Return Forecast"
+  )

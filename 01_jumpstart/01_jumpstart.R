@@ -290,5 +290,6 @@ refit_tbl %>%
   plot_modeltime_forecast(
     .legend_max_width = 25
     , .interactive = FALSE
+    , .conf_interval_show = FALSE
     , .title = "12 Week CCI30 Log Return Forecast"
   )

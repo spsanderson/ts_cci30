@@ -272,12 +272,12 @@ calibration_tbl %>%
 # Refit to all Data -------------------------------------------------------
 
 refit_tbl <- calibration_tbl %>%
-  modeltime_refit(data = log_rets_daily_tbl)
-  # modeltime_refit(
-  #   data        = data_tbl
-  #   , resamples = resample_tscv
-  #   , control   = control_resamples(verbose = TRUE)
-  # )
+  #modeltime_refit(data = log_rets_daily_tbl)
+  modeltime_refit(
+    data        = log_rets_daily_tbl
+    , resamples = resample_tscv
+    #, control   = control_resamples(verbose = TRUE)
+  )
 
 top_two_models <- refit_tbl %>% 
   modeltime_accuracy() %>% 

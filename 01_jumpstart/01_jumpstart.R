@@ -24,7 +24,7 @@ cci_index_tbl %>%
 
 # * Daily Log Returns ----
 time_param <- "weekly"
-log_rets_daily_tbl <- cci_index_tbl %>%
+log_returns_tbl <- cci_index_tbl %>%
   tq_transmute(
     select = close
     , periodReturn
@@ -35,11 +35,11 @@ log_rets_daily_tbl <- cci_index_tbl %>%
   purrr::set_names("date_col","value")
 
 # * Summary diagnostics ----
-log_rets_daily_tbl %>%
+log_returns_tbl %>%
   tk_summary_diagnostics(.date_var = date_col)
 
 # * Visualize ----
-log_rets_daily_tbl %>%
+log_returns_tbl %>%
   plot_time_series(
     .date_var = date_col
     , .value  = value
@@ -48,7 +48,7 @@ log_rets_daily_tbl %>%
 
 # * Train/Test ----
 
-splits <- log_rets_daily_tbl %>%
+splits <- log_returns_tbl %>%
   time_series_split(
     .date_var = date_col
     , assess = "12 weeks"
@@ -237,7 +237,7 @@ calibration_tbl
 calibration_tbl %>%
   modeltime_forecast(
     new_data = testing(splits),
-    actual_data = log_rets_daily_tbl
+    actual_data = log_returns_tbl
   ) %>%
   plot_modeltime_forecast(
     .legend_max_width = 25,
@@ -253,9 +253,9 @@ calibration_tbl %>%
 # Refit to all Data -------------------------------------------------------
 
 refit_tbl <- calibration_tbl %>%
-  #modeltime_refit(data = log_rets_daily_tbl)
+  #modeltime_refit(data = log_returns_tbl)
   modeltime_refit(
-    data        = log_rets_daily_tbl
+    data        = log_returns_tbl
     , resamples = resample_tscv
     #, control   = control_resamples(verbose = TRUE)
   )
@@ -267,7 +267,7 @@ top_two_models <- refit_tbl %>%
 
 refit_tbl %>%
   filter(.model_id %in% top_two_models$.model_id) %>%
-  modeltime_forecast(h = "12 weeks", actual_data = log_rets_daily_tbl) %>%
+  modeltime_forecast(h = "12 weeks", actual_data = log_returns_tbl) %>%
   plot_modeltime_forecast(
     .legend_max_width = 25
     , .interactive = FALSE

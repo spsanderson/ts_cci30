@@ -8,27 +8,8 @@
 #   2. LM w/ Engineered Features
 
 # LIBRARIES ----
-
-if(!require(pacman)) install.packages("pacman")
-pacman::p_load(
-  
-  # TS ML
-  "tidymodels",
-  "modeltime",
-  "tidyquant",
-  "modeltime.ensemble",
-  
-  # EDA
-  "DataExplorer",
-  
-  # Core TS
-  "tidyverse",
-  "timetk",
-  "lubridate",
-  
-  # Clean Up
-  "janitor"
-)
+source("00_scripts/lib_load.R")
+source("00_scripts/data_load.R")
 
 # DATA -----
 cci_index_tbl <- read_csv("00_data/cci30_OHLCV.csv") %>%

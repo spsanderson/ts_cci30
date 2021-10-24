@@ -50,7 +50,7 @@ log_returns_tbl %>%
 
 splits <- log_returns_tbl %>%
   time_series_split(
-    .date_var = date_col
+    date_var = date_col
     , assess = "12 weeks"
     , cumulative = TRUE
   )
@@ -60,6 +60,9 @@ splits %>%
   plot_time_series_cv_plan(
     .date_var = date_col
     , .value  = value
+    , .title  = paste0(
+      "CCI30 ", stringr::str_to_title(time_param), " Log Returns"
+    )
   )
 
 # Features ----------------------------------------------------------------

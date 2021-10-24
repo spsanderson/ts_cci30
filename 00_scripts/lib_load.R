@@ -22,6 +22,10 @@ pacman::p_load(
 ,"tidymodels"   # Meta - workflows, parsnip, tune, dials, recipes, rsample, yardstick
 ,"rules"        # Rule-based models (cubist"
 ,"modeltime"    # tidymodels time series extension
+,"modeltime.ensemble"
+,"modeltime.resample"
+,"modeltime.h2o"
+,"modeltime.gluonts"
 
 # * Core Libraries ----
 ,"tidyverse"    # Meta - dplyr, ggplot2, purrr, tidyr, stringr, forcats
@@ -31,4 +35,5 @@ pacman::p_load(
 # Extras
 ,"DataExplorer"
 ,"fs"
+,"janitor"
 )

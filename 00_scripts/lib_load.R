@@ -31,6 +31,7 @@ pacman::p_load(
 ,"tidyverse"    # Meta - dplyr, ggplot2, purrr, tidyr, stringr, forcats
 ,"lubridate"    # date and time
 ,"timetk"       # Time series data wrangling, visualization and preprocessing
+,"tidyquant"
 
 # Extras
 ,"DataExplorer"

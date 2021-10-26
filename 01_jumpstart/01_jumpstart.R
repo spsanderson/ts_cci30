@@ -46,6 +46,23 @@ log_returns_tbl %>%
     , .smooth = FALSE
   )
 
+# * ACF / PACF -----
+# - Date Features & Fourier Series 
+log_returns_tbl %>%
+  plot_acf_diagnostics(.date_var = date_col, .value = value)
+
+log_returns_tbl %>%
+  plot_acf_diagnostics(.date_var = date_col, .value = value, .lags = 28)
+
+# 3.0 SEASONALITY ----
+# - Detecting Time-Based Features
+
+log_returns_tbl %>%
+  plot_seasonal_diagnostics(.date_var = date_col, .value = value)
+
+
+
+
 # * Train/Test ----
 
 splits <- log_returns_tbl %>%

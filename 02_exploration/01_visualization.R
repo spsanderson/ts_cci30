@@ -25,26 +25,39 @@ log_returns_tbl %>%
 # 4.0 ANOMALIES ----
 # - Detecting Events & Possible Data Issues
 
-?plot_anomaly_diagnostics
-
-subscribers_day_tbl %>%
+log_returns_tbl %>%
   plot_anomaly_diagnostics(
-    .date_var = optin_time
-    , .value = optins
-    , .alpha = 0.01
+    .date_var = date_col
+    , .value  = value
+    , .alpha  = 0.01
     , .max_anomalies = 0.01
   )
 
-subscribers_day_tbl %>%
+log_returns_tbl %>%
   tk_anomaly_diagnostics(
-    .date_var = optin_time
-    , .value = optins
+    .date_var = date_col
+    , .value  = value
   )
 
-# Grouped Anomalies
-google_analytics_long_hour_tbl %>%
-  group_by(name) %>%
-  plot_anomaly_diagnostics(
-    .date_var = date
-    , .value = value
+# 5.0 SEASONAL DECOMPOSITION ----
+# - Detecting Trend and Seasonal Cycles
+
+log_returns_tbl %>%
+  plot_stl_diagnostics(
+    .date_var = date_col
+    , .value  = value
   )
+
+
+# 6.0 TIME SERIES REGRESSION PLOT ----
+# - Finding features
+
+log_returns_tbl %>%
+  plot_time_series_regression(
+    .date_var  = date_col
+    , .formula = value ~ as.numeric(date_col)
+    + week(date_col)
+    + month(date_col, label = TRUE)
+    , .show_summary = TRUE
+  )
+

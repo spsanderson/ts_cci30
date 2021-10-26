@@ -34,33 +34,15 @@ log_returns_tbl <- cci_index_tbl %>%
   ) %>%
   purrr::set_names("date_col","value")
 
+write_rds(
+  x    = log_returns_tbl,
+  file = "00_data/cci30.rds"
+)
+
+
 # * Summary diagnostics ----
 log_returns_tbl %>%
   tk_summary_diagnostics(.date_var = date_col)
-
-# * Visualize ----
-log_returns_tbl %>%
-  plot_time_series(
-    .date_var = date_col
-    , .value  = value
-    , .smooth = FALSE
-  )
-
-# * ACF / PACF -----
-# - Date Features & Fourier Series 
-log_returns_tbl %>%
-  plot_acf_diagnostics(.date_var = date_col, .value = value)
-
-log_returns_tbl %>%
-  plot_acf_diagnostics(.date_var = date_col, .value = value, .lags = 28)
-
-# 3.0 SEASONALITY ----
-# - Detecting Time-Based Features
-
-log_returns_tbl %>%
-  plot_seasonal_diagnostics(.date_var = date_col, .value = value)
-
-
 
 
 # * Train/Test ----

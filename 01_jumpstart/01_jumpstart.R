@@ -311,3 +311,25 @@ calibration_tbl <- models_tbl %>%
 parallel_stop()
 
 calibration_tbl
+
+# Testing Accuracy --------------------------------------------------------
+
+parallel_start(n_cores)
+
+calibration_tbl %>%
+  modeltime_forecast(
+    new_data = testing(splits),
+    actual_data = data_final_tbl
+  ) %>%
+  plot_modeltime_forecast(
+    .legend_max_width = 25,
+    .interactive = interactive,
+    .conf_interval_show = FALSE
+  )
+
+parallel_stop()
+
+calibration_tbl %>%
+  modeltime_accuracy() %>%
+  arrange(desc(rsq)) %>%
+  table_modeltime_accuracy(.interactive = FALSE)

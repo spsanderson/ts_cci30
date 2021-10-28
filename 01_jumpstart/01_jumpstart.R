@@ -345,3 +345,28 @@ output <- healthyR.ts::ts_model_auto_tune(
   .tscv_skip = "4 weeks",
   .num_cores = n_cores
 )
+
+tuned_wflw <- output$model_info$tuned_tscv_wflw_spec
+calibration_tuned_tbl <- output$data$calibration_tuned_tbl
+
+# Refit to all Data -------------------------------------------------------
+
+parallel_start(n_cores)
+refit_tbl <- calibration_tuned_tbl %>%
+  modeltime_refit(
+    data = log_returns_tbl
+    , control = control_refit(
+      verbose   = TRUE
+      , allow_par = FALSE
+    )
+  )
+parallel_stop()
+
+refit_tbl %>%
+  modeltime_forecast(h = "12 weeks", actual_data = log_returns_tbl) %>%
+  plot_modeltime_forecast(
+    .legend_max_width     = 25
+    , .interactive        = FALSE
+    , .conf_interval_show = FALSE
+    , .title = "CCI30 Log Retunrs Forecast 12 Weeks Out"
+  )

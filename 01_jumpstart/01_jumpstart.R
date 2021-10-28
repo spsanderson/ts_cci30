@@ -64,6 +64,8 @@ splits %>%
     )
   )
 
+n_cores <- parallel::detectCores() - 1
+
 # Features ----------------------------------------------------------------
 
 recipe_base <- recipe(value ~ ., data = training(splits))
@@ -270,7 +272,7 @@ wf_fits <- wfsets %>%
   modeltime_fit_workflowset(
     data = training(splits)
     , control = control_fit_workflowset(
-      allow_par = FALSE
+      allow_par = TRUE
       , verbose = TRUE
     )
   )

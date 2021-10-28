@@ -319,7 +319,7 @@ parallel_start(n_cores)
 calibration_tbl %>%
   modeltime_forecast(
     new_data = testing(splits),
-    actual_data = data_final_tbl
+    actual_data = log_returns_tbl
   ) %>%
   plot_modeltime_forecast(
     .legend_max_width = 25,
@@ -333,3 +333,15 @@ calibration_tbl %>%
   modeltime_accuracy() %>%
   arrange(desc(rsq)) %>%
   table_modeltime_accuracy(.interactive = FALSE)
+
+output <- healthyR.ts::ts_model_auto_tune(
+  .modeltime_model_id = 16,
+  .calibration_tbl = calibration_tbl,
+  .splits_obj = splits,
+  .drop_training_na = TRUE,
+  .date_col = date_col,
+  .value_col = value,
+  .tscv_assess = "26 weeks",
+  .tscv_skip = "4 weeks",
+  .num_cores = n_cores
+)

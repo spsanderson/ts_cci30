@@ -66,31 +66,42 @@ splits %>%
 
 # Features ----------------------------------------------------------------
 
-recipe_base <- recipe(value ~ ., data = training(splits)) %>%
-  step_timeseries_signature(date_col)
+recipe_base <- recipe(value ~ ., data = training(splits))
 
-recipe_final <- recipe_base %>%
-  step_rm(
-    contains("iso")
-    , contains("second")
-    , contains("minute")
-    , contains("hour")
-    , contains("am.pm")
-    , contains("xts")
-  ) %>%
-  step_normalize(contains("index.num"), date_col_year) %>%
-  step_dummy(contains("lbl"), one_hot = TRUE) %>%
-  step_fourier(date_col, period = 365/12, K = 2) %>%
-  step_holiday_signature(date_col) %>%
-  step_YeoJohnson(value)
+recipe_date <- recipe_base %>%
+  step_timeseries_signature(date_col) %>%
+  step_rm(matches("(iso$)|(xts$)|(hour)|(min)|(sec)|(am.pm)")) %>%
+  step_normalize(contains("index.num"), contains("date_col_year"))
 
-# MODELING ----
-# * AUTO ARIMA ----
-model_fit_arima_no_boost <- arima_reg() %>%
-  set_engine(engine = "auto_arima") %>%
-  fit(value ~ date_col, data = training(splits))
+recipe_fourier <- recipe_date %>%
+  step_dummy(all_nominal_predictors(), one_hot = TRUE) %>%
+  step_fourier(date_col, period = 365/12, K = 1) %>%
+  step_YeoJohnson(value, limits = c(0,1))
 
-# * Boosted Auto ARIMA ------------------------------------------------------
+recipe_fourier_final <- recipe_fourier %>%
+  step_nzv(all_predictors())
+
+recipe_pca <- recipe_base %>%
+  step_timeseries_signature(date_col) %>%
+  step_rm(matches("(iso$)|(xts$)|(hour)|(min)|(sec)|(am.pm)")) %>%
+  step_dummy(all_nominal_predictors(), one_hot = TRUE) %>%
+  step_normalize(value) %>%
+  step_fourier(date_col, period = 365/52, K = 1) %>%
+  step_normalize(all_numeric_predictors()) %>%
+  step_nzv(all_predictors()) %>%
+  step_pca(all_numeric_predictors(), threshold = .95)
+
+recipe_num_only <- recipe_pca %>%
+  step_rm(-value, -all_numeric_predictors())
+
+# Models ------------------------------------------------------------------
+
+# Auto ARIMA --------------------------------------------------------------
+
+model_spec_arima_no_boost <- arima_reg() %>%
+  set_engine(engine = "auto_arima")
+
+# Boosted Auto ARIMA ------------------------------------------------------
 
 model_spec_arima_boosted <- arima_boost(
   min_n = 2
@@ -98,181 +109,203 @@ model_spec_arima_boosted <- arima_boost(
 ) %>%
   set_engine(engine = "auto_arima_xgboost")
 
-wflw_fit_arima_boosted <- workflow() %>%
-  add_recipe(recipe = recipe_final) %>%
-  add_model(model_spec_arima_boosted) %>%
-  fit(training(splits))
+# ETS ---------------------------------------------------------------------
 
-
-# * ETS ---------------------------------------------------------------------
-
-model_spec_ets <- exp_smoothing() %>%
+model_spec_ets <- exp_smoothing(
+  seasonal_period = "auto",
+  error = "auto",
+  trend = "auto",
+  season = "auto",
+  damping = "auto"
+) %>%
   set_engine(engine = "ets") 
 
-wflw_fit_ets <- workflow() %>%
-  add_recipe(recipe = recipe_final) %>%
-  add_model(model_spec_ets) %>%
-  fit(training(splits))
+model_spec_croston <- exp_smoothing(
+  seasonal_period = "auto",
+  error = "auto",
+  trend = "auto",
+  season = "auto",
+  damping = "auto"
+) %>%
+  set_engine(engine = "croston")
 
-# * Prophet -----------------------------------------------------------------
+model_spec_theta <- exp_smoothing(
+  seasonal_period = "auto",
+  error = "auto",
+  trend = "auto",
+  season = "auto",
+  damping = "auto"
+) %>%
+  set_engine(engine = "theta")
 
-model_spec_prophet <- prophet_reg() %>%
+
+# STLM ETS ----------------------------------------------------------------
+
+model_spec_stlm_ets <- seasonal_reg(
+  seasonal_period_1 = "auto",
+  seasonal_period_2 = "auto",
+  seasonal_period_3 = "auto"
+) %>%
+  set_engine("stlm_ets")
+
+model_spec_stlm_tbats <- seasonal_reg(
+  seasonal_period_1 = "auto",
+  seasonal_period_2 = "auto",
+  seasonal_period_3 = "auto"
+) %>%
+  set_engine("tbats")
+
+model_spec_stlm_arima <- seasonal_reg(
+  seasonal_period_1 = "auto",
+  seasonal_period_2 = "auto",
+  seasonal_period_3 = "auto"
+) %>%
+  set_engine("stlm_arima")
+
+# NNETAR ------------------------------------------------------------------
+
+model_spec_nnetar <- nnetar_reg(
+  mode              = "regression"
+  , seasonal_period = "auto"
+) %>%
+  set_engine("nnetar")
+
+
+# Prophet -----------------------------------------------------------------
+
+model_spec_prophet <- prophet_reg(
+  seasonality_yearly = "auto",
+  seasonality_weekly = "auto",
+  seasonality_daily = "auto"
+) %>%
   set_engine(engine = "prophet")
 
-wflw_fit_prophet <- workflow() %>%
-  add_recipe(recipe = recipe_final) %>%
-  add_model(model_spec_prophet) %>%
-  fit(training(splits))
-
-model_spec_prophet_boost <- prophet_boost(learn_rate = 0.1) %>% 
+model_spec_prophet_boost <- prophet_boost(
+  learn_rate = 0.1
+  , trees = 10
+  , seasonality_yearly = FALSE
+  , seasonality_weekly = FALSE
+  , seasonality_daily  = FALSE
+) %>% 
   set_engine("prophet_xgboost") 
 
-wflw_fit_prophet_boost <- workflow() %>%
-  add_recipe(recipe = recipe_final) %>%
-  add_model(model_spec_prophet_boost) %>%
-  fit(training(splits))
-
-# * TSLM --------------------------------------------------------------------
+# TSLM --------------------------------------------------------------------
 
 model_spec_lm <- linear_reg() %>%
   set_engine("lm")
 
-wflw_fit_lm <- workflow() %>%
-  add_recipe(recipe = recipe_final) %>%
-  add_model(model_spec_lm) %>%
-  fit(training(splits))
+model_spec_glm <- linear_reg(
+  penalty = 1,
+  mixture = 0.5
+) %>%
+  set_engine("glmnet")
 
+model_spec_stan <- linear_reg() %>%
+  set_engine("stan")
 
-# * TBATS ------------------------------------------------------------
+model_spec_spark <- linear_reg(
+  penalty = 1,
+  mixture = 0.5
+) %>% 
+  set_engine("spark")
 
-model_fit_tbats <- seasonal_reg() %>%
-  set_engine("tbats")%>%
-  fit(value ~ date_col, data = training(splits))
+model_spec_keras <- linear_reg(
+  penalty = 1,
+  mixture = 0.5
+) %>%
+  set_engine("keras")
 
-# * MARS --------------------------------------------------------------------
+# MARS --------------------------------------------------------------------
 
 model_spec_mars <- mars(mode = "regression") %>%
   set_engine("earth")
 
-wflw_fit_mars <- workflow() %>%
-  add_recipe(recipe = recipe_final) %>%
-  add_model(model_spec_mars) %>%
-  fit(training(splits))
+# XGBoost -----------------------------------------------------------------
 
-# * NNETAR ------------------------------------------------------------------
+model_spec_xgboost <- boost_tree(
+  mode  = "regression",
+  mtry  = 10,
+  trees = 100,
+  min_n = 5,
+  tree_depth = 3,
+  learn_rate = 0.3,
+  loss_reduction = 0.01
+) %>%
+  set_engine("xgboost")
 
-model_fit_nnetar <- nnetar_reg() %>%
-  set_engine("nnetar") %>%
-  fit(value ~ date_col, data = training(splits))
+# Workflowsets ------------------------------------------------------------
+
+wfsets <- workflow_set(
+  preproc = list(
+    base          = recipe_base,
+    date          = recipe_date,
+    fourier       = recipe_fourier,
+    fourier_final = recipe_fourier_final,
+    pca           = recipe_pca,
+    num_only_pca  = recipe_num_only
+  ),
+  models = list(
+    model_spec_arima_no_boost,
+    model_spec_arima_boosted,
+    model_spec_ets,
+    model_spec_lm,
+    model_spec_glm,
+    # model_spec_stan,
+    # model_spec_spark,
+    # model_spec_keras,
+    model_spec_mars,
+    model_spec_nnetar,
+    model_spec_prophet,
+    model_spec_prophet_boost,
+    model_spec_stlm_arima,
+    model_spec_stlm_ets,
+    model_spec_stlm_tbats,
+    model_spec_xgboost
+  ),
+  cross = TRUE
+)
+
+parallel_start(n_cores)
+wf_fits <- wfsets %>% 
+  modeltime_fit_workflowset(
+    data = training(splits)
+    , control = control_fit_workflowset(
+      allow_par = FALSE
+      , verbose = TRUE
+    )
+  )
+parallel_stop()
+
+wf_fits <- wf_fits %>%
+  filter(.model != "NULL")
 
 # Model Table -------------------------------------------------------------
 
-models_tbl <- modeltime_table(
-  model_fit_arima_no_boost,
-  wflw_fit_arima_boosted,
-  wflw_fit_ets,
-  wflw_fit_prophet,
-  wflw_fit_prophet_boost,
-  wflw_fit_lm, 
-  model_fit_tbats,
-  wflw_fit_mars,
-  model_fit_nnetar
-)
+models_tbl <- wf_fits
 
-# * Model Ensemble Table ----------------------------------------------------
-resample_tscv <- training(splits) %>%
-  time_series_cv(
-    date_var      = date_col
-    , assess      = "30 days"
-    , initial     = "120 days"
-    , skip        = "30 days"
-    , slice_limit = 1
-  )
+# Model Ensemble Table ----------------------------------------------------
 
-submodel_predictions <- models_tbl %>%
-  modeltime_fit_resamples(
-    resamples = resample_tscv
-    , control = control_resamples(verbose = TRUE)
-  )
-
-ensemble_fit <- submodel_predictions %>%
-  ensemble_model_spec(
-    model_spec = linear_reg(
-      penalty  = tune()
-      , mixture = tune()
-    ) %>%
-      set_engine("glmnet")
-    , kfold    = 5
-    , grid     = 6
-    , control  = control_grid(verbose = TRUE)
-  )
-
-ensemble_mean_fit <- models_tbl %>%
+fit_mean_ensemble <- models_tbl %>%
   ensemble_average(type = "mean")
 
+fit_median_ensemble <- models_tbl %>%
+  ensemble_average(type = "median")
+
 # Model Table -------------------------------------------------------------
 
-models_tbl <- modeltime_table(
-  model_fit_arima_no_boost,
-  wflw_fit_arima_boosted,
-  wflw_fit_ets,
-  wflw_fit_prophet,
-  wflw_fit_prophet_boost,
-  wflw_fit_lm, 
-  model_fit_tbats,
-  wflw_fit_mars,
-  model_fit_nnetar,
-  #ensemble_fit,
-  ensemble_mean_fit
-)
+models_tbl <- models_tbl %>%
+  add_modeltime_model(fit_mean_ensemble) %>%
+  add_modeltime_model(fit_median_ensemble)
 
 models_tbl
 
 # Calibrate Model Testing -------------------------------------------------
 
+parallel_start(n_cores)
+
 calibration_tbl <- models_tbl %>%
   modeltime_calibrate(new_data = testing(splits))
+
+parallel_stop()
+
 calibration_tbl
-
-# Testing Accuracy --------------------------------------------------------
-
-calibration_tbl %>%
-  modeltime_forecast(
-    new_data = testing(splits),
-    actual_data = log_returns_tbl
-  ) %>%
-  plot_modeltime_forecast(
-    .legend_max_width = 25,
-    .interactive = TRUE,
-    .conf_interval_show = FALSE
-  )
-
-calibration_tbl %>%
-  modeltime_accuracy() %>%
-  arrange(rmse) %>%
-  table_modeltime_accuracy(resizable = TRUE, bordered = TRUE)
-
-# Refit to all Data -------------------------------------------------------
-
-refit_tbl <- calibration_tbl %>%
-  #modeltime_refit(data = log_returns_tbl)
-  modeltime_refit(
-    data        = log_returns_tbl
-    , resamples = resample_tscv
-    #, control   = control_resamples(verbose = TRUE)
-  )
-
-top_two_models <- refit_tbl %>% 
-  modeltime_accuracy() %>% 
-  arrange(mae) %>% 
-  head(2)
-
-refit_tbl %>%
-  filter(.model_id %in% top_two_models$.model_id) %>%
-  modeltime_forecast(h = "12 weeks", actual_data = log_returns_tbl) %>%
-  plot_modeltime_forecast(
-    .legend_max_width = 25
-    , .interactive = FALSE
-    , .conf_interval_show = FALSE
-    , .title = "12 Week CCI30 Log Return Forecast"
-  )

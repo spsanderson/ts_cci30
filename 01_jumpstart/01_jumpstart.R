@@ -27,12 +27,22 @@ time_param <- "weekly"
 log_returns_tbl <- cci_index_tbl %>%
   tq_transmute(
     select = close
-    , periodReturn
+    , mutate_fun = periodReturn
     , period = time_param
     , type = "log"
-    , col_rename = "value"
+    #, col_rename = "value"
   ) %>%
-  purrr::set_names("date_col","value")
+  left_join(cci_index_tbl, by = c("date"="date")) %>%
+  select(date, weekly.returns) %>%
+  mutate(ret_lag = lag_vec(weekly.returns)) %>%
+  purrr::set_names("date_col","value","lag_returns") %>%
+  healthyR.ai::hai_fourier_augment( #currently only in dev
+    .value = c(value, lag_returns)
+    , .period = 52
+    , .order = 1
+    , .scale_type = "sincos"
+  ) %>%
+  drop_na()
 
 write_rds(
   x    = log_returns_tbl,
@@ -323,7 +333,7 @@ calibration_tbl %>%
   ) %>%
   plot_modeltime_forecast(
     .legend_max_width = 25,
-    .interactive = interactive,
+    .interactive = TRUE,
     .conf_interval_show = FALSE
   )
 
@@ -331,11 +341,12 @@ parallel_stop()
 
 calibration_tbl %>%
   modeltime_accuracy() %>%
+  drop_na() %>%
   arrange(desc(rsq)) %>%
   table_modeltime_accuracy(.interactive = FALSE)
 
-output <- healthyR.ts::ts_model_auto_tune(
-  .modeltime_model_id = 16,
+mars_pca <- healthyR.ts::ts_model_auto_tune(
+  .modeltime_model_id = 44,
   .calibration_tbl = calibration_tbl,
   .splits_obj = splits,
   .drop_training_na = TRUE,
@@ -346,8 +357,14 @@ output <- healthyR.ts::ts_model_auto_tune(
   .num_cores = n_cores
 )
 
-tuned_wflw <- output$model_info$tuned_tscv_wflw_spec
-calibration_tuned_tbl <- output$data$calibration_tuned_tbl
+new_model <- mars_pca$model_info$tuned_tscv_wflw_spec
+ori_model <- mars_pca$model_info$plucked_model
+
+calibration_tuned_tbl <- modeltime_table(
+  new_model,
+  ori_model
+) %>%
+  modeltime_calibrate(new_data = testing(splits))
 
 # Refit to all Data -------------------------------------------------------
 

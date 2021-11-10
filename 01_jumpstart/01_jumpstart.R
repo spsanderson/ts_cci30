@@ -40,7 +40,7 @@ log_returns_tbl <- cci_index_tbl %>%
     .value = c(value, lag_returns)
     , .period = 52
     , .order = 1
-    , .scale_type = "sincos"
+    , .scale_type = c("sin","cos","sincos")
   ) %>%
   drop_na()
 

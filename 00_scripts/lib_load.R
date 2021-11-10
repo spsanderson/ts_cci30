@@ -2,7 +2,7 @@ if(!require(pacman)) {install.packages("pacman")}
 
 pacman::p_load(
 # * Forecasting Libraries ----
-"forecast"     # Auto ARIMA, ETS
+"forecast"      # Auto ARIMA, ETS
 ,"prophet"      # FB Prophet
 
 # * Machine Learning Libraries ----

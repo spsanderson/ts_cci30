@@ -337,11 +337,10 @@ calibration_tbl %>%
   modeltime_accuracy() %>%
   drop_na() %>%
   arrange(desc(rsq)) %>%
-  filter(rsq < 1)
   table_modeltime_accuracy(.interactive = FALSE)
 
 output <- healthyR.ts::ts_model_auto_tune(
-  .modeltime_model_id = 21,
+  .modeltime_model_id = 16,
   .calibration_tbl = calibration_tbl,
   .splits_obj = splits,
   .drop_training_na = TRUE,
@@ -355,7 +354,7 @@ output <- healthyR.ts::ts_model_auto_tune(
 new_model <- output$model_info$tuned_tscv_wflw_spec
 ori_model <- output$model_info$plucked_model
 
-healthyR.ts::calibrate_and_plot(
+calibrate_and_plot(
   new_model,
   ori_model,
   .splits_obj = splits,

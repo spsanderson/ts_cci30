@@ -37,4 +37,5 @@ pacman::p_load(
 ,"DataExplorer"
 ,"fs"
 ,"janitor"
+,"healthyverse"
 )

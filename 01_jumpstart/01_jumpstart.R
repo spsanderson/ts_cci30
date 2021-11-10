@@ -30,19 +30,9 @@ log_returns_tbl <- cci_index_tbl %>%
     , mutate_fun = periodReturn
     , period = time_param
     , type = "log"
-    #, col_rename = "value"
+    , col_rename = "value"
   ) %>%
-  left_join(cci_index_tbl, by = c("date"="date")) %>%
-  select(date, weekly.returns) %>%
-  mutate(ret_lag = lag_vec(weekly.returns)) %>%
-  purrr::set_names("date_col","value","lag_returns") %>%
-  healthyR.ai::hai_fourier_augment( #currently only in dev
-    .value = c(value, lag_returns)
-    , .period = 52
-    , .order = 1
-    , .scale_type = c("sin","cos","sincos")
-  ) %>%
-  drop_na()
+  set_names("date_col", "value")
 
 write_rds(
   x    = log_returns_tbl,
@@ -78,7 +68,11 @@ n_cores <- parallel::detectCores() - 1
 
 # Features ----------------------------------------------------------------
 
-recipe_base <- recipe(value ~ ., data = training(splits))
+recipe_base <- recipe(value ~ ., data = training(splits)) %>%
+  step_hai_fourier(value, scale_type = "sin", period = 12, order = 1) %>% 
+  step_hai_fourier(value, scale_type = "cos", period = 12, order = 1)%>% 
+  step_hai_fourier(value, scale_type = "sincos", period = 12, order = 1) %>%
+  step_hai_hyperbolic(value, scale_type = "tan")
 
 recipe_date <- recipe_base %>%
   step_timeseries_signature(date_col) %>%
@@ -328,12 +322,12 @@ parallel_start(n_cores)
 
 calibration_tbl %>%
   modeltime_forecast(
-    new_data = testing(splits),
+    new_data    = testing(splits),
     actual_data = log_returns_tbl
   ) %>%
   plot_modeltime_forecast(
-    .legend_max_width = 25,
-    .interactive = TRUE,
+    .legend_max_width   = 25,
+    .interactive        = TRUE,
     .conf_interval_show = FALSE
   )
 
@@ -376,6 +370,7 @@ calibration_tuned_tbl <- modeltime_table(
 ) %>%
   update_model_description(1, "TUNED - ARIMA(2,0,0) With Non-Zero Mean BOOST") %>%
   update_model_description(2, "NON-TUNED ARIMA(2,0,0) With Non-Zero Mean BOOST") %>%
+  modeltime_refit(data = training(splits)) %>%
   modeltime_calibrate(new_data = testing(splits))
 
 # Refit to all Data -------------------------------------------------------

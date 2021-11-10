@@ -337,7 +337,7 @@ calibration_tbl %>%
   table_modeltime_accuracy(.interactive = FALSE)
 
 output <- healthyR.ts::ts_model_auto_tune(
-  .modeltime_model_id = 2,
+  .modeltime_model_id = 1,
   .calibration_tbl    = calibration_tbl,
   .splits_obj         = splits,
   .drop_training_na   = TRUE,

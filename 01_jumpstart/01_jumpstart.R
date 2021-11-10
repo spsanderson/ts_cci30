@@ -69,13 +69,7 @@ n_cores <- parallel::detectCores() - 1
 # Features ----------------------------------------------------------------
 
 recipe_base <- recipe(value ~ ., data = training(splits)) %>%
-  # step_hai_fourier(value, scale_type = "sin", period = 12, order = 1) %>% 
-  # step_hai_fourier(value, scale_type = "cos", period = 12, order = 1)%>% 
-  # step_hai_fourier(value, scale_type = "sincos", period = 12, order = 1) %>%
-  step_hai_hyperbolic(value, scale_type = "tan") %>%
-  step_hai_hyperbolic(value, scale_type = "cos") %>%
-  step_hai_hyperbolic(value, scale_type = "sin") %>%
-  step_hai_hyperbolic(value, scale_type = "sincos")
+  step_hai_fourier(value, scale_type = "sincos", period = 12, order = 1)
 
 recipe_date <- recipe_base %>%
   step_timeseries_signature(date_col) %>%
@@ -343,7 +337,7 @@ calibration_tbl %>%
   table_modeltime_accuracy(.interactive = FALSE)
 
 output <- healthyR.ts::ts_model_auto_tune(
-  .modeltime_model_id = 13,
+  .modeltime_model_id = 2,
   .calibration_tbl    = calibration_tbl,
   .splits_obj         = splits,
   .drop_training_na   = TRUE,

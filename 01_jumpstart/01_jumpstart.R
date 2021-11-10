@@ -343,10 +343,11 @@ calibration_tbl %>%
   modeltime_accuracy() %>%
   drop_na() %>%
   arrange(desc(rsq)) %>%
+  filter(rsq < 1)
   table_modeltime_accuracy(.interactive = FALSE)
 
-mars_pca <- healthyR.ts::ts_model_auto_tune(
-  .modeltime_model_id = 44,
+output <- healthyR.ts::ts_model_auto_tune(
+  .modeltime_model_id = 21,
   .calibration_tbl = calibration_tbl,
   .splits_obj = splits,
   .drop_training_na = TRUE,
@@ -357,13 +358,24 @@ mars_pca <- healthyR.ts::ts_model_auto_tune(
   .num_cores = n_cores
 )
 
-new_model <- mars_pca$model_info$tuned_tscv_wflw_spec
-ori_model <- mars_pca$model_info$plucked_model
+new_model <- output$model_info$tuned_tscv_wflw_spec
+ori_model <- output$model_info$plucked_model
+
+healthyR.ts::calibrate_and_plot(
+  new_model,
+  ori_model,
+  .splits_obj = splits,
+  .data = log_returns_tbl,
+  .type = "testing",
+  .interactive = TRUE
+)$plot 
 
 calibration_tuned_tbl <- modeltime_table(
   new_model,
   ori_model
 ) %>%
+  update_model_description(1, "TUNED - ARIMA(2,0,0) With Non-Zero Mean BOOST") %>%
+  update_model_description(2, "NON-TUNED ARIMA(2,0,0) With Non-Zero Mean BOOST") %>%
   modeltime_calibrate(new_data = testing(splits))
 
 # Refit to all Data -------------------------------------------------------
@@ -374,7 +386,7 @@ refit_tbl <- calibration_tuned_tbl %>%
     data = log_returns_tbl
     , control = control_refit(
       verbose   = TRUE
-      , allow_par = FALSE
+      , allow_par = TRUE
     )
   )
 parallel_stop()

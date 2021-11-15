@@ -8,8 +8,8 @@ pacman::p_load(
   "tidyquant"
 )
 
-getSymbols('ETH-USD') # Get daily price data from yahooFinance
-eth <- `ETH-USD` # change the name of the data
+getSymbols('ADA-USD') # Get daily price data from yahooFinance
+eth <- `ADA-USD` # change the name of the data
 eth <- eth[,4] %>% Delt(k=1) %>% na.omit() # pull adjusted close, convert to return, and remove NA data
 
 # time_param <- "weekly"
@@ -35,7 +35,7 @@ rnd_logistic <- rlogis(N, location = pars_logistic$parameters[1],
                        scale = pars_logistic$parameters[2])
 
 data_tbl <- tibble(
-  ETH_Empirical = eth$Delt.1.arithmetic %>% as.numeric()
+  ADA_Empirical = eth$Delt.1.arithmetic %>% as.numeric()
   , Random_Alpha_Stable = rnd_as
   , Random_Gaussian = rnd_gauss
   , Random_Logistic = rnd_logistic
@@ -59,7 +59,7 @@ p1 <- data_tbl %>%
   theme(legend.position = "bottom")
 
 p2 <- data_tbl %>%
-  filter(name %in% c("ETH_Empirical","Random_Alpha_Stable")) %>%
+  filter(name %in% c("ADA_Empirical","Random_Alpha_Stable")) %>%
   ggplot(aes(x = value, fill = as.factor(name))) +
   geom_density(alpha = .2) +
   theme_minimal() +
@@ -67,7 +67,7 @@ p2 <- data_tbl %>%
   labs(
     x = "Log Returns"
     , y = "Density Estimate"
-    , title = "ETH Weekly Empirical Log Returns"
+    , title = "ADA Daily Empirical Log Returns"
     , fill = ""
   ) +
   theme(legend.position = "bottom")

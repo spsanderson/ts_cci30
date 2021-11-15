@@ -69,7 +69,10 @@ n_cores <- parallel::detectCores() - 1
 # Features ----------------------------------------------------------------
 
 recipe_base <- recipe(value ~ ., data = training(splits)) %>%
-  step_hai_fourier(value, scale_type = "sincos", period = 12, order = 1)
+  step_hai_fourier(value, scale_type = "sincos", period = 12, order = 1) %>%
+  step_fourier(date_col, period = c(4, 26, 52), K = 1) %>%
+  step_lag(value, lag = 1) %>%
+  step_impute_knn(contains("lag_"))
 
 recipe_date <- recipe_base %>%
   step_timeseries_signature(date_col) %>%
@@ -307,7 +310,7 @@ models_tbl
 parallel_start(n_cores)
 
 calibration_tbl <- models_tbl %>%
-  modeltime_calibrate(new_data = testing(splits))
+  modeltime_calibrate(new_data = testing(splits), quiet = FALSE)
 
 parallel_stop()
 
@@ -337,7 +340,7 @@ calibration_tbl %>%
   table_modeltime_accuracy(.interactive = FALSE)
 
 output <- healthyR.ts::ts_model_auto_tune(
-  .modeltime_model_id = 1,
+  .modeltime_model_id = 2,
   .calibration_tbl    = calibration_tbl,
   .splits_obj         = splits,
   .drop_training_na   = TRUE,
@@ -364,10 +367,26 @@ calibration_tuned_tbl <- modeltime_table(
   new_model,
   ori_model
 ) %>%
-  update_model_description(1, "TUNED - ARIMA(2,0,0) With Non-Zero Mean BOOST") %>%
-  update_model_description(2, "NON-TUNED ARIMA(2,0,0) With Non-Zero Mean BOOST") %>%
+  update_model_description(1, "TUNED - ARIMA(2,0,0) W Non-Zero Mean W/Drift") %>%
+  update_model_description(2, "ORIGINAL - ARIMA(2,0,0) W Non-Zero Mean W/Drift") %>%
   modeltime_refit(data = training(splits)) %>%
   modeltime_calibrate(new_data = testing(splits))
+
+parallel_start(n_cores)
+refit_ensemble_models <- calibration_tbl %>%
+  filter(
+    .model_desc %>%
+      str_to_lower() %>%
+      str_detect("ensemble")
+  ) %>%
+  modeltime_refit(
+    data = log_returns_tbl
+    , control = control_refit(
+      verbose   = TRUE
+      , allow_par = TRUE
+    )
+  )
+parellel_stop()
 
 # Refit to all Data -------------------------------------------------------
 
@@ -382,11 +401,13 @@ refit_tbl <- calibration_tuned_tbl %>%
   )
 parallel_stop()
 
-refit_tbl %>%
+model_choices <- rbind(refit_tbl, refit_ensemble_models)
+
+model_choices %>%
   modeltime_forecast(h = "12 weeks", actual_data = log_returns_tbl) %>%
   plot_modeltime_forecast(
     .legend_max_width     = 25
     , .interactive        = FALSE
     , .conf_interval_show = FALSE
-    , .title = "CCI30 Log Retunrs Forecast 12 Weeks Out"
+    , .title = "CCI30 Log Returns Forecast 12 Weeks Out"
   )

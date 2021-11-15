@@ -385,7 +385,8 @@ refit_ensemble_models <- calibration_tbl %>%
       verbose   = TRUE
       , allow_par = TRUE
     )
-  )
+  ) %>%
+  modeltime_accuracy()
 parellel_stop()
 
 # Refit to all Data -------------------------------------------------------
@@ -403,11 +404,11 @@ parallel_stop()
 
 model_choices <- rbind(refit_tbl, refit_ensemble_models)
 
-model_choices %>%
+ model_choices %>%
   modeltime_forecast(h = "12 weeks", actual_data = log_returns_tbl) %>%
   plot_modeltime_forecast(
     .legend_max_width     = 25
-    , .interactive        = FALSE
+    , .interactive        = TRUE
     , .conf_interval_show = FALSE
     , .title = "CCI30 Log Returns Forecast 12 Weeks Out"
   )

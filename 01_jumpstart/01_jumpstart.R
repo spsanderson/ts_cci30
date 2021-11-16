@@ -69,12 +69,10 @@ n_cores <- parallel::detectCores() - 1
 # Features ----------------------------------------------------------------
 
 recipe_base <- recipe(value ~ ., data = training(splits)) %>%
-  step_mutate(yr = lubridate::year(date_col)) %>%
-  step_harmonic(yr, frequency = 12, cycle_size = 1) %>%
-  step_fourier(date_col, period = 12, K = 1) %>%
-  step_rm(yr) %>%
-  step_hai_fourier(value, scale_type = "sincos", period = 12, order = 1) %>%
-  step_fourier(date_col, period = c(4, 26, 52), K = 1) %>%
+  step_mutate(wk = lubridate::week(date_col)) %>%
+  step_harmonic(wk, frequency = 365/52, cycle_size = 1) %>%
+  step_rm(wk) %>%
+  step_hai_fourier(value, scale_type = "sincos", period = 365/52, order = 1) %>%
   step_lag(value, lag = 1) %>%
   step_impute_knn(contains("lag_"))
 
@@ -85,7 +83,7 @@ recipe_date <- recipe_base %>%
 
 recipe_fourier <- recipe_date %>%
   step_dummy(all_nominal_predictors(), one_hot = TRUE) %>%
-  step_fourier(date_col, period = 365/12, K = 1) %>%
+  step_fourier(date_col, period = 365/52, K = 1) %>%
   step_YeoJohnson(value, limits = c(0,1))
 
 recipe_fourier_final <- recipe_fourier %>%

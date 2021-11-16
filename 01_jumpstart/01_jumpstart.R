@@ -69,6 +69,10 @@ n_cores <- parallel::detectCores() - 1
 # Features ----------------------------------------------------------------
 
 recipe_base <- recipe(value ~ ., data = training(splits)) %>%
+  step_mutate(yr = lubridate::year(date_col)) %>%
+  step_harmonic(yr, frequency = 12, cycle_size = 1) %>%
+  step_fourier(date_col, period = 12, K = 1) %>%
+  step_rm(yr) %>%
   step_hai_fourier(value, scale_type = "sincos", period = 12, order = 1) %>%
   step_fourier(date_col, period = c(4, 26, 52), K = 1) %>%
   step_lag(value, lag = 1) %>%

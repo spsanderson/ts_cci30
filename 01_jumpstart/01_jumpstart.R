@@ -1,12 +1,5 @@
 # GOAL: Forecast Daily Log Returns - Next 12-WEEKS
 
-# OBJECTIVES ----
-# - Dive into a time-series analysis project
-# - Experience Frameworks: modeltime
-# - Experience 2 Algorithms:
-#   1. Prophet
-#   2. LM w/ Engineered Features
-
 # LIBRARIES ----
 source("00_scripts/lib_load.R")
 source("00_scripts/data_load.R")
